@@ -1,7 +1,7 @@
-#include "gui.hpp"
+#include "widget.hpp"
 #include <string>
 
-void Gui::displayFPS(const int fps)
+void Widget::displayFPS(const int fps)
 {
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -21,4 +21,3 @@ void Gui::displayFPS(const int fps)
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
-

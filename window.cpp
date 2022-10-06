@@ -1,6 +1,6 @@
 #include "window.hpp"
 #include <string>
-#include "gui.hpp"
+#include "widget.hpp"
 
 HWND Window::makeWindow(const char* streamName,uint16_t width, uint16_t height)
 {

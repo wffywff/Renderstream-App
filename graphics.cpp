@@ -1,6 +1,6 @@
 #include "graphics.hpp"
 #include <stdexcept>
-#include "gui.hpp"
+#include "widget.hpp"
 
 HRESULT Graphics::makeDxDevice()
 {

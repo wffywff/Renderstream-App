@@ -90,6 +90,8 @@ int Engine::renderFrame(const StreamDescription& description, const CameraRespon
     const float yaw = DirectX::XMConvertToRadians(response.camera.ry);
     const float roll = -DirectX::XMConvertToRadians(response.camera.rz);
 
+    //TODO use ImGui::DragFloat3() to override the value here
+    //static float translationOffset[3] = { 0, 0, 0 };
     const DirectX::XMMATRIX cameraTranslation = DirectX::XMMatrixTranslation(response.camera.x, response.camera.y, response.camera.z);
     const DirectX::XMMATRIX cameraRotation = DirectX::XMMatrixRotationRollPitchYaw(pitch, yaw, roll);
     //why do we need to inverse the matrix of translation? and also Transpose of cameraRotation? 
@@ -134,16 +136,17 @@ int Engine::renderFrame(const StreamDescription& description, const CameraRespon
 
     graphics.render(targets, matFinal);
 
-    static int frameCount = 0;
-    frameCount++;
+    static int fps_count = 0;
+    fps_count++;
     auto milliseconds_elapsed = timer.getDuration().count();
     guiWindow.displayFPS(0);
     if (milliseconds_elapsed > 1000)
     {
-        guiWindow.displayFPS(frameCount);
-        frameCount = 0;
+        guiWindow.displayFPS(fps_count);
+        fps_count = 0;
         timer.start();
     }
+
     graphics.getSwapChain()->Present(0, 0);
 
     return 0;

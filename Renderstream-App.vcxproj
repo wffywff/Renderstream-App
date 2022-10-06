@@ -143,7 +143,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="engine.cpp" />
-    <ClCompile Include="gui.cpp" />
+    <ClCompile Include="widget.cpp" />
     <ClCompile Include="include\imgui\imgui.cpp" />
     <ClCompile Include="include\imgui\imgui_demo.cpp" />
     <ClCompile Include="include\imgui\imgui_draw.cpp" />
@@ -161,7 +161,7 @@
     <ClInclude Include="Generated_Code\PixelShader.h" />
     <ClInclude Include="Generated_Code\VertexShader.h" />
     <ClInclude Include="graphics.hpp" />
-    <ClInclude Include="gui.hpp" />
+    <ClInclude Include="widget.hpp" />
     <ClInclude Include="include\d3renderstream.h" />
     <ClInclude Include="include\imgui\imconfig.h" />
     <ClInclude Include="include\imgui\imgui.h" />

@@ -61,7 +61,6 @@ int main()
 
     while (true)
     {
-        engine.timer.start();
         RS_ERROR err = rs_awaitFrameData(5000, &frameData);
         if (err == RS_ERROR_STREAMS_CHANGED)
         {
@@ -102,7 +101,7 @@ int main()
         }
         else if (err == RS_ERROR_QUIT)
         {
-            engine.log.log("Exiting due to quit request.");
+            engine.log.log("Exiting due to quit requested from rendersteam.");
             RS_ERROR err = rs_shutdown();
             if (err == RS_ERROR_SUCCESS)
                 return 0;
@@ -115,7 +114,7 @@ int main()
             break;
         }
 
-        while (engine.window.processMessage())
+        if (engine.window.processMessage())
         {
             const size_t numStreams = descriptions ? descriptions->nStreams : 0;
             for (size_t i = 0; i < numStreams; i++)
@@ -136,6 +135,15 @@ int main()
                     }
                 }
             }
+        }
+        else
+        {
+            engine.log.log("Exiting due to quit request from window interaction.");
+            rs_shutdown();
+            if (err == RS_ERROR_SUCCESS)
+                return 0;
+            else
+                return 99;
         }
     }
     if (rs_shutdown() != RS_ERROR_SUCCESS)

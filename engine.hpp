@@ -9,7 +9,7 @@
 
 #include "helper.hpp"
 #include "graphics.hpp"
-#include "gui.hpp"
+#include "widget.hpp"
 #include "window.hpp"
 
 struct RenderTarget
@@ -23,7 +23,7 @@ class Engine
 public:
     ErrorLogger log;
     Graphics graphics;
-    Gui guiWindow;
+    Widget guiWindow;
     Timer timer;
     Window window;
     std::unordered_map<StreamHandle, RenderTarget> renderstreamTarget; 
