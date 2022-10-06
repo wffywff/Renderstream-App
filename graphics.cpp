@@ -103,6 +103,14 @@ int Graphics::initDx(HWND window, const StreamDescription& description)
     if (FAILED(dev->CreateDepthStencilView(pDepthBuffer, &dsvd, depthStencilView.GetAddressOf()))) return 86;
     pDepthBuffer->Release();
 
+    D3D11_VIEWPORT viewport;
+    ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
+    viewport.Width = static_cast<float>(description.width);
+    viewport.Height = static_cast<float>(description.height);
+    viewport.MinDepth = 0;
+    viewport.MaxDepth = 1;
+    devcon->RSSetViewports(1, &viewport);
+
     //Step7/8:create shaders base off the shader.h's binary blob 
     if (FAILED(dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))  return 87;
     if (FAILED(dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))  return 88;
@@ -215,4 +223,30 @@ DXGI_FORMAT Graphics::toDxgiFormat(RSPixelFormat rsFormat)
     default:
         throw std::runtime_error("bad pixel format");
     }
+}
+
+void Graphics::render(ID3D11RenderTargetView* renderstreamRenderTarget, const DirectX::XMMATRIX matFinal)
+{
+    ID3D11RenderTargetView* renderTargetList[2] = { backbuffer.Get(), renderstreamRenderTarget };
+    devcon->OMSetRenderTargets(2, renderTargetList, nullptr);
+    //devcon->OMSetRenderTargets(1, target.view.GetAddressOf(), nullptr);
+    const float clearColour[4] = { 0.f, 0.f, 0.f, 0.f };
+    for (int i = 0; i < 2; i++)
+    {
+        devcon->ClearRenderTargetView(renderTargetList[i], clearColour);
+    }
+
+    devcon->UpdateSubresource(pCBuffer.Get(), 0, nullptr, &matFinal, 0, 0);
+
+    // Draw cube
+    UINT stride = sizeof(DirectX::XMFLOAT3);
+    UINT offset = 0;
+    devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
+    devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    devcon->IASetInputLayout(pLayout.Get());
+    devcon->VSSetShader(pVS.Get(), nullptr, 0);
+    devcon->VSSetConstantBuffers(0, 1, pCBuffer.GetAddressOf());
+    devcon->PSSetShader(pPS.Get(), nullptr, 0);
+    devcon->DrawIndexed(36, 0, 0);
 }

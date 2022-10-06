@@ -1,15 +1,13 @@
 #include "engine.hpp"
 #include "window.hpp"
-#include "helper.hpp"
 
 int main()
 {
 #ifdef _DEBUG
     MessageBoxA(NULL, "Attach Debugger Now", NULL, NULL);
 #endif
-    std::cout << "Hello World!\n";
+
     Engine engine;
-    engine.graphics.makeDxDevice();
     engine.log.log("Starting RenderStream Tester app.\n");
 
     HMODULE hLib = engine.loadRenderStreamDll();
@@ -19,6 +17,11 @@ int main()
         return 1;
     };
 
+    // https://davekilian.com/decltype-funcptrs.html
+    // decltype evaluates to the type of expression
+    // evaluate to the function pointer signature for all rs api functions
+    //void myFunction(int arg);
+    //typedef decltype(&myFunction)funcptr;
 #define LOAD_FN(FUNC_NAME) \
     decltype(FUNC_NAME)* FUNC_NAME = reinterpret_cast<decltype(FUNC_NAME)>(GetProcAddress(hLib, #FUNC_NAME)); \
     if (!FUNC_NAME) { \
@@ -39,35 +42,41 @@ int main()
         engine.log.popMessageBox("Failed to initialise RenderStream");
         return 3;
     }
-    engine.graphics.makeDxDevice();
-    if (rs_initialiseGpGpuWithDX11Device(engine.graphics.dev.Get()) != RS_ERROR_SUCCESS)
+    HRESULT hr = engine.graphics.makeDxDevice();
+    if (FAILED(hr))
+    {
+        engine.log.popMessageBox("Failed to create DxDevice");
+        return 4;
+    }
+    if (rs_initialiseGpGpuWithDX11Device(engine.graphics.getDxDevice().Get()) != RS_ERROR_SUCCESS)
     {
         engine.log.popMessageBox("Failed to initalise GpGPU with DX11 Device");
-        return 4;
+        return 5;
     }
 
     FrameData frameData;
     uint32_t desSize = 0;
-    std::vector<uint32_t> streamData;
+    std::vector<char> streamData;
     StreamDescriptions* descriptions = NULL;
 
     while (true)
     {
+        engine.timer.start();
         RS_ERROR err = rs_awaitFrameData(5000, &frameData);
         if (err == RS_ERROR_STREAMS_CHANGED)
         {
-            engine.timer.start();
             try
             {
-                rs_getStreams(nullptr, &desSize); // returns RS_ERROR_BUFFER_OVERFLOW, and sets descriptionsSize to required size in bytes.
+                // first call would return RS_ERROR_BUFFER_OVERFLOW but populate desSize -- required size in bytes.
+                rs_getStreams(nullptr, &desSize); 
                 streamData.resize(desSize);
-                rs_getStreams(reinterpret_cast<StreamDescriptions*>(streamData.data()), &desSize); // returns RS_ERROR_SUCCESS
+                // this time should be able to read bytes into the buffer of streamData, then reinterpret the memory as the struct StreamDescription
+                rs_getStreams(reinterpret_cast<StreamDescriptions*>(streamData.data()), &desSize); 
                 descriptions = reinterpret_cast<StreamDescriptions*>(streamData.data());
 
                 const size_t numStreams = descriptions ? descriptions->nStreams : 0;
                 for (size_t i = 0; i < numStreams; i++)
                 {
-                    //find the streamdescription 
                     const StreamDescription& description = descriptions->streams[i];
                     engine.setup(description);
                     std::string streamName = static_cast<std::string>(description.channel) + description.name;
@@ -75,7 +84,7 @@ int main()
                     if (engine.graphics.initDx(window, description) != 0)
                     {
                         engine.log.popMessageBox("initating DirectX with stream description failed.");
-                        return 5;
+                        return 6;
                     };
                 }
             }
@@ -93,7 +102,7 @@ int main()
         }
         else if (err == RS_ERROR_QUIT)
         {
-            engine.log.popMessageBox("Exiting due to quit request.");
+            engine.log.log("Exiting due to quit request.");
             RS_ERROR err = rs_shutdown();
             if (err == RS_ERROR_SUCCESS)
                 return 0;
@@ -112,10 +121,8 @@ int main()
             for (size_t i = 0; i < numStreams; i++)
             {
                 const StreamDescription& description = descriptions->streams[i];
-
                 CameraResponseData response;
                 response.tTracked = frameData.tTracked;
-
                 if (rs_getFrameCamera(description.handle, &response.camera) == RS_ERROR_SUCCESS)
                 {
                     engine.renderFrame(description, response);

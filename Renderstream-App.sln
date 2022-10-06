@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.32126.315
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "class test", "class test.vcxproj", "{7D7B863C-827D-48E1-9CAE-967FE01D8670}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Renderstream-App", "Renderstream-App.vcxproj", "{7D7B863C-827D-48E1-9CAE-967FE01D8670}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

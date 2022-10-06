@@ -44,9 +44,11 @@ HMODULE Engine::loadRenderStreamDll()
 
 void Engine::setup(const StreamDescription& streamDesc)
 {
+    // populate the handle as the key
+    // setup a reference to target struct so we can create them 
     RenderTarget& target = renderstreamTarget[streamDesc.handle];
 
-    //make description for a 2dTexture
+    // make description for a 2dTexture
     D3D11_TEXTURE2D_DESC rtDesc;
     ZeroMemory(&rtDesc, sizeof(D3D11_TEXTURE2D_DESC));
 
@@ -66,41 +68,19 @@ void Engine::setup(const StreamDescription& streamDesc)
     rtDesc.CPUAccessFlags = 0;
     rtDesc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 
-    if (FAILED(graphics.dev->CreateTexture2D(&rtDesc, nullptr, target.texture.GetAddressOf())))
+    if (FAILED(graphics.getDxDevice()->CreateTexture2D(&rtDesc, nullptr, target.texture.GetAddressOf())))
         log.popMessageBox("Failed to create render target texture for stream");
 
     D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
     ZeroMemory(&rtvDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
     rtvDesc.Format = rtDesc.Format;
     rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-    if (FAILED(graphics.dev->CreateRenderTargetView(target.texture.Get(), &rtvDesc, target.view.GetAddressOf())))
+    if (FAILED(graphics.getDxDevice()->CreateRenderTargetView(target.texture.Get(), &rtvDesc, target.view.GetAddressOf())))
         log.popMessageBox("Failed to create render target view for stream");
 }
 
 int Engine::renderFrame(const StreamDescription& description, const CameraResponseData& response)
 {
-    const RenderTarget& target = renderstreamTarget.at(description.handle);
-    //make a list of two targets: backbuffer for the swapchain and the targetview to send over RS.
-
-    ID3D11RenderTargetView* targets[2] = { graphics.backbuffer.Get(), target.view.Get()};
-    graphics.devcon->OMSetRenderTargets(2, targets, nullptr);
-    //devcon->OMSetRenderTargets(1, target.view.GetAddressOf(), nullptr);
-    const float clearColour[4] = { 0.f, 0.f, 0.f, 0.f };
-    for (int i = 0; i < 2; i++)
-    {
-        graphics.devcon->ClearRenderTargetView(targets[i], clearColour);
-    }
-
-    //devcon->ClearRenderTargetView(target.view.Get(), clearColour);
-
-    D3D11_VIEWPORT viewport;
-    ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
-    viewport.Width = static_cast<float>(description.width);
-    viewport.Height = static_cast<float>(description.height);
-    viewport.MinDepth = 0;
-    viewport.MaxDepth = 1;
-    graphics.devcon->RSSetViewports(1, &viewport);
-
     static float Time = 0.0f; Time += 0.01f;
 
     // create a world matrices
@@ -147,31 +127,24 @@ int Engine::renderFrame(const StreamDescription& description, const CameraRespon
     const DirectX::XMMATRIX projection = orthographic ? DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, nearZ, farZ) : DirectX::XMMatrixPerspectiveOffCenterLH(l * nearZ, r * nearZ, b * nearZ, t * nearZ, nearZ, farZ);
 
     DirectX::XMMATRIX matFinal = DirectX::XMMatrixTranspose(matRotate * view * projection * overscan);
-    graphics.devcon->UpdateSubresource(graphics.pCBuffer.Get(), 0, nullptr, &matFinal, 0, 0);
 
-    // Draw cube
-    UINT stride = sizeof(DirectX::XMFLOAT3);
-    UINT offset = 0;
-    graphics.devcon->IASetVertexBuffers(0, 1, graphics.pVBuffer.GetAddressOf(), &stride, &offset);
-    graphics.devcon->IASetIndexBuffer(graphics.pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    graphics.devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    graphics.devcon->IASetInputLayout(graphics.pLayout.Get());
-    graphics.devcon->VSSetShader(graphics.pVS.Get(), nullptr, 0);
-    graphics.devcon->VSSetConstantBuffers(0, 1, graphics.pCBuffer.GetAddressOf());
-    graphics.devcon->PSSetShader(graphics.pPS.Get(), nullptr, 0);
-    graphics.devcon->DrawIndexed(36, 0, 0);
-    
-    static int fps_count = 0;
-    fps_count++;
+    const RenderTarget& target = renderstreamTarget.at(description.handle);
+    //make a list of two targets: backbuffer for the swapchain and the targetview to send over RS.
+    ID3D11RenderTargetView* targets = target.view.Get();
+
+    graphics.render(targets, matFinal);
+
+    static int frameCount = 0;
+    frameCount++;
     auto milliseconds_elapsed = timer.getDuration().count();
     guiWindow.displayFPS(0);
     if (milliseconds_elapsed > 1000)
     {
-        guiWindow.displayFPS(fps_count);
-        fps_count = 0;
+        guiWindow.displayFPS(frameCount);
+        frameCount = 0;
         timer.start();
     }
+    graphics.getSwapChain()->Present(0, 0);
 
-    graphics.swapchain->Present(0, 0);
     return 0;
 }

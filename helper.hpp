@@ -21,5 +21,8 @@ class Timer
 public:
     void start();
     std::chrono::duration<double, std::milli> getDuration();
+    int frameCount;
+    
+private:
     std::chrono::high_resolution_clock::time_point m_start;
 };

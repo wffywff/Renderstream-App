@@ -24,7 +24,7 @@
     <ProjectGuid>{7d7b863c-827d-48e1-9cae-967fe01d8670}</ProjectGuid>
     <RootNamespace>classtest</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>Renderstream-Tester</ProjectName>
+    <ProjectName>Renderstream-App</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

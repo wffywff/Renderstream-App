@@ -23,7 +23,12 @@ public:
     HRESULT makeDxDevice();
     int initDx(HWND window, const StreamDescription& description);
     DXGI_FORMAT toDxgiFormat(RSPixelFormat rsFormat);
+    Microsoft::WRL::ComPtr<ID3D11Device> getDxDevice() const { return dev; };
+    Microsoft::WRL::ComPtr<IDXGISwapChain> getSwapChain() const { return swapchain; };
 
+    void render(ID3D11RenderTargetView* renderstreamRenderTarget, const DirectX::XMMATRIX matFinal);
+
+private:
     Microsoft::WRL::ComPtr<ID3D11Device>        dev;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> devcon;
     Microsoft::WRL::ComPtr<IDXGISwapChain> swapchain;
