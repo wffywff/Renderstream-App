@@ -1,6 +1,7 @@
 #pragma once
 #include "helper.hpp"
 
+// TODO: need to consider if all string in this program should be wstring
 
 void ErrorLogger::log(const std::string& info)
 {

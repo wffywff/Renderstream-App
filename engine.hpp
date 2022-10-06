@@ -18,6 +18,7 @@ struct RenderTarget
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> view;
 };
 
+//TODO: do I need a constructor or descrutor for the these classes..?
 class Engine
 {
 public:

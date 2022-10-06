@@ -15,8 +15,6 @@ HWND Window::makeWindow(const char* streamName,uint16_t width, uint16_t height)
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.lpszClassName = L"RenderStreamDebug";
 
-    m_width = width / 2;
-    m_height = height / 2; 
     m_window_class_wide = L"RenderStreamDebug";
 
     RegisterClassEx(&wc);
