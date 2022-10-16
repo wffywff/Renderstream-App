@@ -42,13 +42,12 @@ int main()
         engine.log.popMessageBox("Failed to initialise RenderStream");
         return 3;
     }
-    HRESULT hr = engine.graphics.makeDxDevice();
-    if (FAILED(hr))
+    if (engine.dx11.dev.Get() == nullptr)
     {
         engine.log.popMessageBox("Failed to create DxDevice");
         return 4;
     }
-    if (rs_initialiseGpGpuWithDX11Device(engine.graphics.getDxDevice().Get()) != RS_ERROR_SUCCESS)
+    if (rs_initialiseGpGpuWithDX11Device(engine.dx11.dev.Get()) != RS_ERROR_SUCCESS)
     {
         engine.log.popMessageBox("Failed to initalise GpGPU with DX11 Device");
         return 5;
@@ -58,6 +57,7 @@ int main()
     uint32_t desSize = 0;
     std::vector<char> streamData;
     StreamDescriptions* descriptions = NULL;
+    Graphics graphic;
 
     while (true)
     {
@@ -77,10 +77,13 @@ int main()
                 for (size_t i = 0; i < numStreams; i++)
                 {
                     const StreamDescription& description = descriptions->streams[i];
-                    engine.setup(description);
-                    std::string streamName = static_cast<std::string>(description.channel) + description.name;
+
+                    //once we get the description, we make window and populte 1)handle 2)width&depth 
+                    std::string streamName = std::string(description.channel) + description.name;
                     HWND window = engine.window.makeWindow(streamName.c_str(), description.width, description.height);
-                    if (engine.graphics.initDx(window, description) != 0)
+                    const Graphics temp(engine.dx11, GraphicsInfo(description.width, description.height, window, description.handle, description.format));
+                    graphic = temp;
+                    if (graphic.getDxDevice() == nullptr)
                     {
                         engine.log.popMessageBox("initating DirectX with stream description failed.");
                         return 6;
@@ -124,9 +127,12 @@ int main()
                 response.tTracked = frameData.tTracked;
                 if (rs_getFrameCamera(description.handle, &response.camera) == RS_ERROR_SUCCESS)
                 {
-                    engine.renderFrame(description, response);
+                    auto matFinal = engine.calculateFrame(description, response);
+                    graphic.render(matFinal);
+                    graphic.getSwapChain()->Present(0, 0);
+
                     SenderFrameTypeData data;
-                    data.dx11.resource = engine.renderstreamTarget[description.handle].texture.Get();
+                    data.dx11.resource = graphic.getRsTexture().Get();
                     if (rs_sendFrame(description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response) != RS_ERROR_SUCCESS)
                     {
                         engine.log.popMessageBox("Failed to send frame");

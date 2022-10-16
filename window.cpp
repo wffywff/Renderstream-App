@@ -22,7 +22,7 @@ HWND Window::makeWindow(const char* streamName,uint16_t width, uint16_t height)
     RECT wr = { 0, 0, (LONG)(width / 2), (LONG)(height / 2) };
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);
 
-    wchar_t* wStreamName = new wchar_t[4096];
+    wchar_t wStreamName[4096];
     MultiByteToWideChar(CP_ACP, 0, streamName, -1, wStreamName, 4096);
 
     hWnd = CreateWindowEx(NULL,

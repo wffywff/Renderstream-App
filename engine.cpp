@@ -44,42 +44,9 @@ HMODULE Engine::loadRenderStreamDll()
 
 void Engine::setup(const StreamDescription& streamDesc)
 {
-    // populate the handle as the key
-    // setup a reference to target struct so we can create them 
-    RenderTarget& target = renderstreamTarget[streamDesc.handle];
-
-    // make description for a 2dTexture
-    D3D11_TEXTURE2D_DESC rtDesc;
-    ZeroMemory(&rtDesc, sizeof(D3D11_TEXTURE2D_DESC));
-
-    //populate the 2d texture's description from d3
-    rtDesc.Width = streamDesc.width;
-    rtDesc.Height = streamDesc.height;
-    // miplevel specfces the subresource from a 1d texutre to use in a shader-resource view
-    // mipmap is a sequence of textures, each of which is a progressively lower resolution representation of the same image
-    // the height and width of each image, or level, in the mipmap is a power of two smaller than the previous level. 
-
-    rtDesc.MipLevels = 1;
-    rtDesc.ArraySize = 1;
-    rtDesc.Format = graphics.toDxgiFormat(streamDesc.format);
-    rtDesc.SampleDesc.Count = 1;
-    rtDesc.Usage = D3D11_USAGE_DEFAULT;
-    rtDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
-    rtDesc.CPUAccessFlags = 0;
-    rtDesc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
-
-    if (FAILED(graphics.getDxDevice()->CreateTexture2D(&rtDesc, nullptr, target.texture.GetAddressOf())))
-        log.popMessageBox("Failed to create render target texture for stream");
-
-    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
-    ZeroMemory(&rtvDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
-    rtvDesc.Format = rtDesc.Format;
-    rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-    if (FAILED(graphics.getDxDevice()->CreateRenderTargetView(target.texture.Get(), &rtvDesc, target.view.GetAddressOf())))
-        log.popMessageBox("Failed to create render target view for stream");
 }
 
-int Engine::renderFrame(const StreamDescription& description, const CameraResponseData& response)
+DirectX::XMMATRIX Engine::calculateFrame(const StreamDescription& description, const CameraResponseData& response)
 {
     static float Time = 0.0f; Time += 0.01f;
 
@@ -130,11 +97,11 @@ int Engine::renderFrame(const StreamDescription& description, const CameraRespon
 
     DirectX::XMMATRIX matFinal = DirectX::XMMatrixTranspose(matRotate * view * projection * overscan);
 
-    const RenderTarget& target = renderstreamTarget.at(description.handle);
-    //make a list of two targets: backbuffer for the swapchain and the targetview to send over RS.
-    ID3D11RenderTargetView* targets = target.view.Get();
+    //const RenderTarget& target = renderstreamTarget.at(description.handle);
+    ////make a list of two targets: backbuffer for the swapchain and the targetview to send over RS.
+    //ID3D11RenderTargetView* targets = target.view.Get();
 
-    graphics.render(targets, matFinal);
+    //graphics.render(targets, matFinal);
 
     static int fps_count = 0;
     fps_count++;
@@ -147,7 +114,7 @@ int Engine::renderFrame(const StreamDescription& description, const CameraRespon
         timer.start();
     }
 
-    graphics.getSwapChain()->Present(0, 0);
+    //graphics.getSwapChain()->Present(0, 0);
 
-    return 0;
+    return matFinal;
 }

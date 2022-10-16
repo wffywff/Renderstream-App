@@ -12,24 +12,18 @@
 #include "widget.hpp"
 #include "window.hpp"
 
-struct RenderTarget
-{
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
-    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> view;
-};
-
 //TODO: do I need a constructor or descrutor for the these classes..?
 class Engine
 {
 public:
     ErrorLogger log;
-    Graphics graphics;
+    dx11device dx11;
     Widget guiWindow;
     Timer timer;
     Window window;
-    std::unordered_map<StreamHandle, RenderTarget> renderstreamTarget; 
+
     HMODULE loadRenderStreamDll();
     void setup(const StreamDescription& streamDesc);
-    int renderFrame(const StreamDescription& description, const CameraResponseData& response);
+    DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const CameraResponseData& response);
 };
 

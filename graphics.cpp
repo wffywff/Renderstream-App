@@ -2,54 +2,100 @@
 #include <stdexcept>
 #include "widget.hpp"
 
-HRESULT Graphics::makeDxDevice()
+Graphics::Graphics(const dx11device& dxObject, const GraphicsInfo& info)
 {
-#ifdef _DEBUG
-    const uint32_t deviceFlags = D3D11_CREATE_DEVICE_DEBUG;
-#else
-    const uint32_t deviceFlags = 0;
-#endif
-
-    D3D_FEATURE_LEVEL levels[] =
-    {
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
-        D3D_FEATURE_LEVEL_9_3,
-        D3D_FEATURE_LEVEL_9_2,
-        D3D_FEATURE_LEVEL_9_1,
-    };
-
-    //Step1: create device
-    HRESULT hr = D3D11CreateDevice(
-        nullptr,                    // Specify nullptr to use the default adapter.
-        D3D_DRIVER_TYPE_HARDWARE,   // Create a device using the hardware graphics driver.
-        0,                          // Should be 0 unless the driver is D3D_DRIVER_TYPE_SOFTWARE.
-        deviceFlags,                // Set debug and Direct2D compatibility flags.
-        levels,                     // List of feature levels this app can support.
-        ARRAYSIZE(levels),          // Size of the list above.
-        D3D11_SDK_VERSION,          // Always set this to D3D11_SDK_VERSION for Windows Store apps.
-        &dev,                    // [OUT] Returns the Direct3D device created.
-        NULL,            // [OUT] Returns feature level of device created.
-        &devcon              // [OUT]Returns the device immediate devcon.
-    );
-    return hr;
+    dev = dxObject.dev;
+    devcon = dxObject.devcon;
+    initDx(info);
 }
 
-int Graphics::initDx(HWND window, const StreamDescription& description)
+Graphics::Graphics(const Graphics& other)
 {
+    dev = other.dev;
+    devcon = other.devcon;
+    swapchain = other.swapchain;
+    backbuffer = other.backbuffer;
+    depthStencilView = other.depthStencilView;
+    pLayout = other.pLayout;
+    pVS = other.pVS;
+    pPS = other.pPS;
+    pVBuffer = other.pVBuffer;
+    pCBuffer = other.pCBuffer;
+    pIBuffer = other.pIBuffer;
+    m_rsTexture = other.m_rsTexture;
+    m_rsTargetView = other.m_rsTargetView;
+}
+
+Graphics& Graphics::operator=(const Graphics& other)
+{
+    if (this != &other) // not a self-assignment
+    {
+        dev = other.dev;
+        devcon = other.devcon;
+        swapchain = other.swapchain;
+        backbuffer = other.backbuffer;
+        depthStencilView = other.depthStencilView;
+        pLayout = other.pLayout;
+        pVS = other.pVS;
+        pPS = other.pPS;
+        pVBuffer = other.pVBuffer;
+        pCBuffer = other.pCBuffer;
+        pIBuffer = other.pIBuffer;
+        m_rsTexture = other.m_rsTexture;
+        m_rsTargetView = other.m_rsTargetView;
+    }
+    return *this;
+}
+
+int Graphics::initDx(const GraphicsInfo& info)
+{
+    // populate the handle as the key
+// setup a reference to target struct so we can create them 
+    RenderTarget& target = renderstreamTarget[info.m_streamHandle];
+    m_rsTexture = target.texture;
+    m_rsTargetView = target.view;
+
+    // make description for a 2dTexture
+    D3D11_TEXTURE2D_DESC rtDesc;
+    ZeroMemory(&rtDesc, sizeof(D3D11_TEXTURE2D_DESC));
+
+    //populate the 2d texture's description from d3
+    rtDesc.Width = info.m_width;
+    rtDesc.Height = info.m_height;
+    // miplevel specfces the subresource from a 1d texutre to use in a shader-resource view
+    // mipmap is a sequence of textures, each of which is a progressively lower resolution representation of the same image
+    // the height and width of each image, or level, in the mipmap is a power of two smaller than the previous level. 
+
+    rtDesc.MipLevels = 1;
+    rtDesc.ArraySize = 1;
+    rtDesc.Format = toDxgiFormat(info.m_format);
+    rtDesc.SampleDesc.Count = 1;
+    rtDesc.Usage = D3D11_USAGE_DEFAULT;
+    rtDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+    rtDesc.CPUAccessFlags = 0;
+    rtDesc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
+
+    if (FAILED(dev->CreateTexture2D(&rtDesc, nullptr, target.texture.GetAddressOf())))
+        return 80;
+
+    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
+    ZeroMemory(&rtvDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+    rtvDesc.Format = rtDesc.Format;
+    rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    if (FAILED(dev->CreateRenderTargetView(target.texture.Get(), &rtvDesc, target.view.GetAddressOf())))
+        return 81;
+
     //Step2: create swapchain
     DXGI_SWAP_CHAIN_DESC scd;
     ZeroMemory(&scd, sizeof(DXGI_SWAP_CHAIN_DESC));
 
     scd.BufferCount = 2;                                   // 2 for tradtional double-buffered behavior to avoid tearing. Set it to 3 if graphic content takes more  than one monitor refresh cycle to render single frame (60hz for example)
     scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;    // use 32-bit color
-    scd.BufferDesc.Width = description.width;                   // set the back buffer width
-    scd.BufferDesc.Height = description.height;                 // set the back buffer height
+    scd.BufferDesc.Width = info.m_width;                   // set the back buffer width
+    scd.BufferDesc.Height = info.m_height;                 // set the back buffer height
     scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;     // indicates that the swap chain will be a drawing surface, allowing to use it as a D3d render-target
     scd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
-    scd.OutputWindow = window;                               // the window to be used
+    scd.OutputWindow = info.m_window;                               // the window to be used
     scd.SampleDesc.Count = 1;                              // how many multisamples
     scd.Windowed = TRUE;                                   // windowed/full-screen mode
     scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;    // allow full-screen switching
@@ -84,8 +130,8 @@ int Graphics::initDx(HWND window, const StreamDescription& description)
     D3D11_TEXTURE2D_DESC texd;
     ZeroMemory(&texd, sizeof(texd));
 
-    texd.Width = description.width;
-    texd.Height = description.height;
+    texd.Width = info.m_width;
+    texd.Height = info.m_height;
     texd.ArraySize = 1;
     texd.MipLevels = 1;
     texd.SampleDesc.Count = 1;
@@ -105,8 +151,8 @@ int Graphics::initDx(HWND window, const StreamDescription& description)
 
     D3D11_VIEWPORT viewport;
     ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
-    viewport.Width = static_cast<float>(description.width);
-    viewport.Height = static_cast<float>(description.height);
+    viewport.Width = static_cast<float>(info.m_width);
+    viewport.Height = static_cast<float>(info.m_height);
     viewport.MinDepth = 0;
     viewport.MaxDepth = 1;
     devcon->RSSetViewports(1, &viewport);
@@ -202,7 +248,7 @@ int Graphics::initDx(HWND window, const StreamDescription& description)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    ImGui_ImplWin32_Init(window);
+    ImGui_ImplWin32_Init(info.m_window);
     ImGui_ImplDX11_Init(dev.Get(), devcon.Get());
     ImGui::StyleColorsDark();
 
@@ -225,9 +271,9 @@ DXGI_FORMAT Graphics::toDxgiFormat(RSPixelFormat rsFormat)
     }
 }
 
-void Graphics::render(ID3D11RenderTargetView* renderstreamRenderTarget, const DirectX::XMMATRIX matFinal)
+void Graphics::render(const DirectX::XMMATRIX matFinal)
 {
-    ID3D11RenderTargetView* renderTargetList[2] = { backbuffer.Get(), renderstreamRenderTarget };
+    ID3D11RenderTargetView* renderTargetList[2] = { backbuffer.Get(), m_rsTargetView.Get() };
     devcon->OMSetRenderTargets(2, renderTargetList, nullptr);
     //devcon->OMSetRenderTargets(1, target.view.GetAddressOf(), nullptr);
     const float clearColour[4] = { 0.f, 0.f, 0.f, 0.f };
@@ -250,3 +296,5 @@ void Graphics::render(ID3D11RenderTargetView* renderstreamRenderTarget, const Di
     devcon->PSSetShader(pPS.Get(), nullptr, 0);
     devcon->DrawIndexed(36, 0, 0);
 }
+
+
