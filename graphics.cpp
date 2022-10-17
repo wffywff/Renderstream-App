@@ -7,6 +7,7 @@ Graphics::Graphics(const dx11device& dxObject, const GraphicsInfo& info)
     dev = dxObject.dev;
     devcon = dxObject.devcon;
     initDx(info);
+    // should we also implement the class invariant here?
 }
 
 Graphics::Graphics(const Graphics& other)

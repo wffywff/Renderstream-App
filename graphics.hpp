@@ -81,6 +81,10 @@ public:
     // don't think we need a desctructor since all the member variables are comPtr
     Graphics(const Graphics& other);
     Graphics& operator=(const Graphics& other);
+    // rule of five - shall we get move constructor and assignment as well? 
+    // since its comPtr, should just increment the count. 
+    // maybe should steal the ownership of the dev and devon out of dx11device?
+    // would it be significantly faster?
 
 
 
