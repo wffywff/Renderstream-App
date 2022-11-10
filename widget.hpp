@@ -11,5 +11,5 @@ public:
     void displayFPS(const int fps);
 
 private:
-    int m_avgFrameRate = 0;
+    int m_avgFrameRate;
 };

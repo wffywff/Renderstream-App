@@ -79,22 +79,23 @@ public:
     Graphics() {};
     Graphics(const dx11device& dxObject, const GraphicsInfo& info);
     // don't think we need a desctructor since all the member variables are comPtr
-    Graphics(const Graphics& other);
-    Graphics& operator=(const Graphics& other);
+   /* Graphics(const Graphics& other);
+    Graphics& operator=(const Graphics& other);*/
     // rule of five - shall we get move constructor and assignment as well? 
     // since its comPtr, should just increment the count. 
     // maybe should steal the ownership of the dev and devon out of dx11device?
     // would it be significantly faster?
 
-
-
     int initDx(const GraphicsInfo& info);
     DXGI_FORMAT toDxgiFormat(RSPixelFormat rsFormat);
+    int loadMesh();
     void render(const DirectX::XMMATRIX matFinal);
     Microsoft::WRL::ComPtr<ID3D11Device> getDxDevice() const { return dev; };
     Microsoft::WRL::ComPtr<IDXGISwapChain> getSwapChain() const { return swapchain; };
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> getRsTexture() const { return m_rsTexture; };
+
     std::unordered_map<StreamHandle, RenderTarget> renderstreamTarget;
+    StreamHandle m_sHandle = 0;
+    RenderTarget getRsTexture() { return renderstreamTarget[m_sHandle]; };
 
 private:
     Microsoft::WRL::ComPtr<ID3D11Device>        dev;
@@ -108,6 +109,12 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Buffer> pVBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer> pCBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer> pIBuffer;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_rsTexture;
-    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_rsTargetView;
+};
+
+class Mesh
+{
+public:
+    void loadObj(const std::string& path);
+    std::vector<uint16_t> indices;
+    std::vector<DirectX::XMFLOAT3> vertex;
 };

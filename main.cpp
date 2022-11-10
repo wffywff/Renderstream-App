@@ -56,8 +56,9 @@ int main()
     FrameData frameData;
     uint32_t desSize = 0;
     std::vector<char> streamData;
-    StreamDescriptions* descriptions = NULL;
-    Graphics graphic;
+    StreamDescriptions* descriptions = nullptr;
+    std::vector<Graphics> graphics;
+    std::vector<Window> windows;
 
     while (true)
     {
@@ -67,10 +68,10 @@ int main()
             try
             {
                 // first call would return RS_ERROR_BUFFER_OVERFLOW but populate desSize -- required size in bytes.
-                rs_getStreams(nullptr, &desSize); 
+                rs_getStreams(nullptr, &desSize);
                 streamData.resize(desSize);
                 // this time should be able to read bytes into the buffer of streamData, then reinterpret the memory as the struct StreamDescription
-                rs_getStreams(reinterpret_cast<StreamDescriptions*>(streamData.data()), &desSize); 
+                rs_getStreams(reinterpret_cast<StreamDescriptions*>(streamData.data()), &desSize);
                 descriptions = reinterpret_cast<StreamDescriptions*>(streamData.data());
 
                 const size_t numStreams = descriptions ? descriptions->nStreams : 0;
@@ -79,13 +80,14 @@ int main()
                     const StreamDescription& description = descriptions->streams[i];
 
                     //once we get the description, we make window and populte 1)handle 2)width&depth 
-                    std::string streamName = std::string(description.channel) + description.name;
-                    HWND window = engine.window.makeWindow(streamName.c_str(), description.width, description.height);
-                    const Graphics temp(engine.dx11, GraphicsInfo(description.width, description.height, window, description.handle, description.format));
-                    graphic = temp;
-                    if (graphic.getDxDevice() == nullptr)
+
+                    windows.emplace_back(description.name, description.width, description.height);
+                    graphics.emplace_back(engine.dx11, GraphicsInfo(description.width, description.height, windows[i].getHandle(), description.handle, description.format));
+
+                    if (graphics[i].getDxDevice() == nullptr)
                     {
                         engine.log.popMessageBox("initating DirectX with stream description failed.");
+                        rs_shutdown();
                         return 6;
                     };
                 }
@@ -117,41 +119,49 @@ int main()
             break;
         }
 
-        if (engine.window.processMessage())
+        const size_t numStreams = descriptions ? descriptions->nStreams : 0;
+        for (size_t i = 0; i < numStreams; i++)
         {
-            const size_t numStreams = descriptions ? descriptions->nStreams : 0;
-            for (size_t i = 0; i < numStreams; i++)
+            engine.timer.start();
+            graphics[i].loadMesh();
+            while (windows[i].processMessage())
             {
                 const StreamDescription& description = descriptions->streams[i];
                 CameraResponseData response;
                 response.tTracked = frameData.tTracked;
                 if (rs_getFrameCamera(description.handle, &response.camera) == RS_ERROR_SUCCESS)
                 {
-                    auto matFinal = engine.calculateFrame(description, response);
-                    graphic.render(matFinal);
-                    graphic.getSwapChain()->Present(0, 0);
+                    auto matFinal = engine.calculateFrame(description, response);   
+                    graphics[i].render(matFinal);
 
                     SenderFrameTypeData data;
-                    data.dx11.resource = graphic.getRsTexture().Get();
+                    data.dx11.resource = graphics[i].getRsTexture().texture.Get();
                     if (rs_sendFrame(description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response) != RS_ERROR_SUCCESS)
                     {
                         engine.log.popMessageBox("Failed to send frame");
                         rs_shutdown();
                         return 7;
                     }
+                    static int fps_count = 0;
+                    fps_count++;
+                    auto milliseconds_elapsed = engine.timer.getDuration().count();
+                    engine.guiWindow.displayFPS(0);
+                    if (milliseconds_elapsed > 1000)
+                    {
+                        engine.guiWindow.displayFPS(fps_count);
+                        fps_count = 0;
+                        engine.timer.start();
+                    }
+
+                    graphics[i].getSwapChain()->Present(0, 0);
                 }
             }
-        }
-        else
-        {
             engine.log.log("Exiting due to quit request from window interaction.");
             rs_shutdown();
-            if (err == RS_ERROR_SUCCESS)
-                return 0;
-            else
-                return 99;
+            return 0;
         }
     }
+
     if (rs_shutdown() != RS_ERROR_SUCCESS)
     {
         engine.log.popMessageBox("Failed to shutdown RenderStream");

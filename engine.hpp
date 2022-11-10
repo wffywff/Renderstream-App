@@ -20,7 +20,6 @@ public:
     dx11device dx11;
     Widget guiWindow;
     Timer timer;
-    Window window;
 
     HMODULE loadRenderStreamDll();
     void setup(const StreamDescription& streamDesc);

@@ -5,7 +5,8 @@
 
 void ErrorLogger::log(const std::string& info)
 {
-    fstreamBuffer.open("log.txt", std::ios::out | std::ios::app);
+
+    fstreamBuffer.open("E:/RenderStream Projects/app_log.txt", std::ios::out | std::ios::app);
     fstreamBuffer << info;
     fstreamBuffer.flush();
     fstreamBuffer.close();

@@ -2,7 +2,7 @@
 #include <string>
 #include "widget.hpp"
 
-HWND Window::makeWindow(const char* streamName,uint16_t width, uint16_t height)
+Window::Window(const char* streamName, uint16_t width, uint16_t height)
 {
     HWND hWnd;
     WNDCLASSEX wc;
@@ -42,7 +42,6 @@ HWND Window::makeWindow(const char* streamName,uint16_t width, uint16_t height)
     SetForegroundWindow(hWnd);
     SetFocus(hWnd);
     m_handle = hWnd;
-    return hWnd;
 }
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

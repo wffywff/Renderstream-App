@@ -97,24 +97,5 @@ DirectX::XMMATRIX Engine::calculateFrame(const StreamDescription& description, c
 
     DirectX::XMMATRIX matFinal = DirectX::XMMatrixTranspose(matRotate * view * projection * overscan);
 
-    //const RenderTarget& target = renderstreamTarget.at(description.handle);
-    ////make a list of two targets: backbuffer for the swapchain and the targetview to send over RS.
-    //ID3D11RenderTargetView* targets = target.view.Get();
-
-    //graphics.render(targets, matFinal);
-
-    static int fps_count = 0;
-    fps_count++;
-    auto milliseconds_elapsed = timer.getDuration().count();
-    guiWindow.displayFPS(0);
-    if (milliseconds_elapsed > 1000)
-    {
-        guiWindow.displayFPS(fps_count);
-        fps_count = 0;
-        timer.start();
-    }
-
-    //graphics.getSwapChain()->Present(0, 0);
-
     return matFinal;
 }
