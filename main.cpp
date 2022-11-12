@@ -1,19 +1,59 @@
 #include "engine.hpp"
 #include "window.hpp"
 
+HMODULE loadRenderStreamDll()
+{
+    HKEY hKey;
+    if (FAILED(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\d3 Technologies\\d3 Production Suite"), 0, KEY_READ, &hKey)))
+    {
+        ErrorLogger::log("Failed to open 'Software\\d3 Technologies\\d3 Production Suite' registry key");
+        return nullptr;
+    }
+
+    TCHAR buffer[512];
+    DWORD bufferSize = sizeof(buffer);
+    if (FAILED(RegQueryValueEx(hKey, TEXT("exe path"), 0, nullptr, reinterpret_cast<LPBYTE>(buffer), &bufferSize)))
+    {
+        ErrorLogger::log("Failed to query value of 'exe path'");
+        return nullptr;
+    }
+
+    if (!PathRemoveFileSpec(buffer))
+    {
+        ErrorLogger::log("Failed to remove file spec from path");
+        return nullptr;
+    }
+
+    if (!PathAppend(buffer, TEXT("\\d3renderstream.dll")))
+    {
+        ErrorLogger::log("Failed to append filename to path");
+        return nullptr;
+    }
+
+    //TCHAR buffer[512];
+
+    //PathAppend(buffer, TEXT("C:\\Program Files\\d3 Production Suite\\build\\msvc\\d3renderstream.dll"));
+
+    HMODULE hLib = ::LoadLibraryEx(buffer, NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_USER_DIRS);
+    if (!hLib)
+    {
+        ErrorLogger::log("Failed to load dll");
+        return nullptr;
+    }
+    return hLib;
+}
+
 int main()
 {
 #ifdef _DEBUG
     MessageBoxA(NULL, "Attach Debugger Now", NULL, NULL);
 #endif
+    ErrorLogger::log("Starting RenderStream Tester app.\n");
 
-    Engine engine;
-    engine.log.log("Starting RenderStream Tester app.\n");
-
-    HMODULE hLib = engine.loadRenderStreamDll();
+    HMODULE hLib = loadRenderStreamDll();
     if (!hLib)
     {
-        engine.log.popMessageBox("Failed to load RenderStream DLL");
+        ErrorLogger::popMessageBox("Failed to load RenderStream DLL");
         return 1;
     };
 
@@ -25,7 +65,7 @@ int main()
 #define LOAD_FN(FUNC_NAME) \
     decltype(FUNC_NAME)* FUNC_NAME = reinterpret_cast<decltype(FUNC_NAME)>(GetProcAddress(hLib, #FUNC_NAME)); \
     if (!FUNC_NAME) { \
-        engine.log.popMessageBox("Failed to get function " #FUNC_NAME " from DLL"); \
+        ErrorLogger::popMessageBox("Failed to get function " #FUNC_NAME " from DLL"); \
         return 2; \
     }
 
@@ -39,26 +79,23 @@ int main()
 
     if (rs_initialise(RENDER_STREAM_VERSION_MAJOR, RENDER_STREAM_VERSION_MINOR) != RS_ERROR_SUCCESS)
     {
-        engine.log.popMessageBox("Failed to initialise RenderStream");
+        ErrorLogger::popMessageBox("Failed to initialise RenderStream");
         return 3;
     }
-    if (engine.dx11.dev.Get() == nullptr)
+    dx11device dx11;
+    if (dx11.dev.Get() == nullptr)
     {
-        engine.log.popMessageBox("Failed to create DxDevice");
+        ErrorLogger::popMessageBox("Failed to create DxDevice");
         return 4;
     }
-    if (rs_initialiseGpGpuWithDX11Device(engine.dx11.dev.Get()) != RS_ERROR_SUCCESS)
+    if (rs_initialiseGpGpuWithDX11Device(dx11.dev.Get()) != RS_ERROR_SUCCESS)
     {
-        engine.log.popMessageBox("Failed to initalise GpGPU with DX11 Device");
+        ErrorLogger::popMessageBox("Failed to initalise GpGPU with DX11 Device");
         return 5;
     }
 
     FrameData frameData;
-    uint32_t desSize = 0;
-    std::vector<char> streamData;
-    StreamDescriptions* descriptions = nullptr;
-    std::vector<Graphics> graphics;
-    std::vector<Window> windows;
+    std::vector<RenderInstance> renderInstances;
 
     while (true)
     {
@@ -67,34 +104,29 @@ int main()
         {
             try
             {
+                uint32_t desSize = 0;
+                std::vector<char> data;
+                StreamDescriptions* descriptions = nullptr;
+
                 // first call would return RS_ERROR_BUFFER_OVERFLOW but populate desSize -- required size in bytes.
                 rs_getStreams(nullptr, &desSize);
-                streamData.resize(desSize);
+                data.resize(desSize);
                 // this time should be able to read bytes into the buffer of streamData, then reinterpret the memory as the struct StreamDescription
-                rs_getStreams(reinterpret_cast<StreamDescriptions*>(streamData.data()), &desSize);
-                descriptions = reinterpret_cast<StreamDescriptions*>(streamData.data());
+                rs_getStreams(reinterpret_cast<StreamDescriptions*>(data.data()), &desSize);
+                descriptions = reinterpret_cast<StreamDescriptions*>(data.data());
 
                 const size_t numStreams = descriptions ? descriptions->nStreams : 0;
                 for (size_t i = 0; i < numStreams; i++)
                 {
-                    const StreamDescription& description = descriptions->streams[i];
-
-                    //once we get the description, we make window and populte 1)handle 2)width&depth 
-
-                    windows.emplace_back(description.name, description.width, description.height);
-                    graphics.emplace_back(engine.dx11, GraphicsInfo(description.width, description.height, windows[i].getHandle(), description.handle, description.format));
-
-                    if (graphics[i].getDxDevice() == nullptr)
-                    {
-                        engine.log.popMessageBox("initating DirectX with stream description failed.");
-                        rs_shutdown();
-                        return 6;
-                    };
+                    StreamDescription& description = descriptions->streams[i];
+                    Window w(description.name, description.width, description.height);
+                    Graphics g(dx11, GraphicsInfo(description.width, description.height, w.getHandle(), description.handle, description.format));
+                    renderInstances.emplace_back(w, g, description);
                 }
             }
             catch (const std::exception& e)
             {
-                engine.log.popMessageBox(e.what());
+                ErrorLogger::popMessageBox(e.what());
                 rs_shutdown();
                 return 4;
             }
@@ -106,7 +138,7 @@ int main()
         }
         else if (err == RS_ERROR_QUIT)
         {
-            engine.log.log("Exiting due to quit requested from rendersteam.");
+            ErrorLogger::log("Exiting due to quit requested from rendersteam.");
             RS_ERROR err = rs_shutdown();
             if (err == RS_ERROR_SUCCESS)
                 return 0;
@@ -115,56 +147,63 @@ int main()
         }
         else if (err != RS_ERROR_SUCCESS)
         {
-            engine.log.popMessageBox("rs_awaitFrameData returned error.");
+            ErrorLogger::popMessageBox("rs_awaitFrameData returned error.");
             break;
         }
 
-        const size_t numStreams = descriptions ? descriptions->nStreams : 0;
-        for (size_t i = 0; i < numStreams; i++)
+        std::vector<RenderInstance>::iterator itr;
+        for (itr = renderInstances.begin(); itr < renderInstances.end();itr++)
         {
-            engine.timer.start();
-            graphics[i].loadMesh();
-            while (windows[i].processMessage())
+            if (!itr->window.processMessage())
             {
-                const StreamDescription& description = descriptions->streams[i];
-                CameraResponseData response;
-                response.tTracked = frameData.tTracked;
-                if (rs_getFrameCamera(description.handle, &response.camera) == RS_ERROR_SUCCESS)
-                {
-                    auto matFinal = engine.calculateFrame(description, response);   
-                    graphics[i].render(matFinal);
-
-                    SenderFrameTypeData data;
-                    data.dx11.resource = graphics[i].getRsTexture().texture.Get();
-                    if (rs_sendFrame(description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response) != RS_ERROR_SUCCESS)
-                    {
-                        engine.log.popMessageBox("Failed to send frame");
-                        rs_shutdown();
-                        return 7;
-                    }
-                    static int fps_count = 0;
-                    fps_count++;
-                    auto milliseconds_elapsed = engine.timer.getDuration().count();
-                    engine.guiWindow.displayFPS(0);
-                    if (milliseconds_elapsed > 1000)
-                    {
-                        engine.guiWindow.displayFPS(fps_count);
-                        fps_count = 0;
-                        engine.timer.start();
-                    }
-
-                    graphics[i].getSwapChain()->Present(0, 0);
-                }
+                int instanceNumber = itr - renderInstances.begin();
+                itr->m_closedByUser = true;
+                std::stringstream info;
+                info << "Exiting render instance #" << instanceNumber << " due to quit request from window interaction.\n";
+                ErrorLogger::log(info.str());
             }
-            engine.log.log("Exiting due to quit request from window interaction.");
-            rs_shutdown();
-            return 0;
+        }
+
+        for (size_t i = 0; i< renderInstances.size(); i++)
+        {
+            if (renderInstances[i].m_closedByUser)
+            {
+                std::stringstream info;
+                info << "Skipping sending instance #" << i << " because user has closed the window.\n";
+                ErrorLogger::log(info.str());
+                continue;
+            }
+            renderInstances[i].timer.start();
+            CameraResponseData response;
+            response.tTracked = frameData.tTracked;
+            if (rs_getFrameCamera(renderInstances[i].description.handle, &response.camera) == RS_ERROR_SUCCESS)
+            {
+                renderInstances[i].render(response);
+                SenderFrameTypeData data;
+                data.dx11.resource = renderInstances[i].graphic.getRsTexture().texture.Get();
+                if (rs_sendFrame(renderInstances[i].description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response) != RS_ERROR_SUCCESS)
+                {
+                    ErrorLogger::popMessageBox("Failed to send frame");
+                    rs_shutdown();
+                    return 7;
+                }
+                static int fps_count = 0;
+                fps_count++;
+                auto milliseconds_elapsed = renderInstances[i].timer.getDuration().count();
+                if (milliseconds_elapsed > 1000)
+                {
+                    renderInstances[i].gui.displayFPS(fps_count);
+                    fps_count = 0;
+                    renderInstances[i].timer.start();
+                }
+                renderInstances[i].graphic.getSwapChain()->Present(0, 0);
+            }
         }
     }
 
     if (rs_shutdown() != RS_ERROR_SUCCESS)
     {
-        engine.log.popMessageBox("Failed to shutdown RenderStream");
+        ErrorLogger::popMessageBox("Failed to shutdown RenderStream");
         return 99;
     }
     return 0;

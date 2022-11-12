@@ -5,11 +5,11 @@
 
 void ErrorLogger::log(const std::string& info)
 {
-
-    fstreamBuffer.open("E:/RenderStream Projects/app_log.txt", std::ios::out | std::ios::app);
-    fstreamBuffer << info;
-    fstreamBuffer.flush();
-    fstreamBuffer.close();
+    std::fstream fs;
+    fs.open("E:/RenderStream Projects/app_log.txt", std::ios::out | std::ios::app);
+    fs << info;
+    fs.flush();
+    fs.close();
 }
 
 void ErrorLogger::popMessageBox(const std::string& popupInfo)

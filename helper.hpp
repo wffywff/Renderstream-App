@@ -11,10 +11,8 @@
 class ErrorLogger
 {
 public:
-    void log(const std::string& info);
-    void popMessageBox(const std::string& popupinfo);
-private:
-    std::fstream fstreamBuffer;
+    static void log(const std::string& info);
+    static void popMessageBox(const std::string& popupinfo);
 };
 
 class Timer

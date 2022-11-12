@@ -13,16 +13,23 @@
 #include "window.hpp"
 
 //TODO: do I need a constructor or descrutor for the these classes..?
-class Engine
+class RenderInstance
 {
 public:
-    ErrorLogger log;
-    dx11device dx11;
-    Widget guiWindow;
-    Timer timer;
+    RenderInstance(Window& w, Graphics& g, StreamDescription &desc) :
+        window(w), graphic(g), description(desc)
+    {
+        gui = Widget();
+        timer = Timer();
+    }
+    void render(const CameraResponseData&);
 
-    HMODULE loadRenderStreamDll();
-    void setup(const StreamDescription& streamDesc);
-    DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const CameraResponseData& response);
+    Widget gui;
+    Timer timer;
+    Window window;
+    StreamDescription description;
+    Graphics graphic;
+    bool m_closedByUser = false;
+
 };
 

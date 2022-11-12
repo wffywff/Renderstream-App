@@ -1,52 +1,6 @@
 #include "engine.hpp"
 
-HMODULE Engine::loadRenderStreamDll()
-{
-    HKEY hKey;
-    if (FAILED(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\d3 Technologies\\d3 Production Suite"), 0, KEY_READ, &hKey)))
-    {
-        log.log("Failed to open 'Software\\d3 Technologies\\d3 Production Suite' registry key");
-        return nullptr;
-    }
-
-    TCHAR buffer[512];
-    DWORD bufferSize = sizeof(buffer);
-    if (FAILED(RegQueryValueEx(hKey, TEXT("exe path"), 0, nullptr, reinterpret_cast<LPBYTE>(buffer), &bufferSize)))
-    {
-        log.log("Failed to query value of 'exe path'");
-        return nullptr;
-    }
-
-    if (!PathRemoveFileSpec(buffer))
-    {
-        log.log("Failed to remove file spec from path");
-        return nullptr;
-    }
-
-    if (!PathAppend(buffer, TEXT("\\d3renderstream.dll")))
-    {
-        log.log("Failed to append filename to path");
-        return nullptr;
-    }
-
-    //TCHAR buffer[512];
-
-    //PathAppend(buffer, TEXT("C:\\Program Files\\d3 Production Suite\\build\\msvc\\d3renderstream.dll"));
-        
-    HMODULE hLib = ::LoadLibraryEx(buffer, NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_USER_DIRS);
-    if (!hLib)
-    {
-        log.log("Failed to load dll");
-        return nullptr;
-    }
-    return hLib;
-}
-
-void Engine::setup(const StreamDescription& streamDesc)
-{
-}
-
-DirectX::XMMATRIX Engine::calculateFrame(const StreamDescription& description, const CameraResponseData& response)
+DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const CameraResponseData& response)
 {
     static float Time = 0.0f; Time += 0.01f;
 
@@ -98,4 +52,11 @@ DirectX::XMMATRIX Engine::calculateFrame(const StreamDescription& description, c
     DirectX::XMMATRIX matFinal = DirectX::XMMatrixTranspose(matRotate * view * projection * overscan);
 
     return matFinal;
+}
+
+void RenderInstance::render(const CameraResponseData& response)
+{
+    graphic.loadMesh();
+    auto m = calculateFrame(description, response);
+    graphic.render(m);
 }
