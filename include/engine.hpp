@@ -7,7 +7,7 @@
 #include <wrl/client.h>
 #pragma comment (lib, "d3d11.lib")
 
-#include "helper.hpp"
+#include "utility.hpp"
 #include "graphics.hpp"
 #include "widget.hpp"
 #include "window.hpp"
@@ -22,7 +22,8 @@ public:
         gui = Widget();
         timer = Timer();
     }
-    void render(const CameraResponseData&);
+    RenderTarget render(const CameraResponseData&);
+    void fps();
 
     Widget gui;
     Timer timer;

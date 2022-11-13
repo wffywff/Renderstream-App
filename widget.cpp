@@ -1,4 +1,4 @@
-#include "widget.hpp"
+#include "include/widget.hpp"
 #include <string>
 
 void Widget::displayFPS(const int fps)

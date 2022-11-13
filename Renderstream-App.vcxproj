@@ -153,15 +153,15 @@
     <ClCompile Include="include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="graphics.cpp" />
-    <ClCompile Include="helper.cpp" />
+    <ClCompile Include="utility.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="engine.hpp" />
+    <ClInclude Include="include\engine.hpp" />
     <ClInclude Include="Generated_Code\PixelShader.h" />
     <ClInclude Include="Generated_Code\VertexShader.h" />
-    <ClInclude Include="graphics.hpp" />
-    <ClInclude Include="widget.hpp" />
+    <ClInclude Include="include\graphics.hpp" />
+    <ClInclude Include="include\widget.hpp" />
     <ClInclude Include="include\d3renderstream.h" />
     <ClInclude Include="include\imgui\imconfig.h" />
     <ClInclude Include="include\imgui\imgui.h" />
@@ -171,8 +171,8 @@
     <ClInclude Include="include\imgui\imstb_rectpack.h" />
     <ClInclude Include="include\imgui\imstb_textedit.h" />
     <ClInclude Include="include\imgui\imstb_truetype.h" />
-    <ClInclude Include="helper.hpp" />
-    <ClInclude Include="window.hpp" />
+    <ClInclude Include="include\utility.hpp" />
+    <ClInclude Include="include\window.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

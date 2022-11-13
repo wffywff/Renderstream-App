@@ -1,6 +1,6 @@
-#include "graphics.hpp"
+#include "include/graphics.hpp"
+#include "include/widget.hpp"
 #include <stdexcept>
-#include "widget.hpp"
 #include <fstream>
 #include <sstream>
 #include <string>

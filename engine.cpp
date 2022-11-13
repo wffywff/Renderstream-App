@@ -1,4 +1,4 @@
-#include "engine.hpp"
+#include "include/engine.hpp"
 
 DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const CameraResponseData& response)
 {
@@ -54,9 +54,23 @@ DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const Cam
     return matFinal;
 }
 
-void RenderInstance::render(const CameraResponseData& response)
+RenderTarget RenderInstance::render(const CameraResponseData& response)
 {
     graphic.loadMesh();
     auto m = calculateFrame(description, response);
     graphic.render(m);
+    return graphic.renderstreamTarget[graphic.m_sHandle];
+}
+
+void RenderInstance::fps()
+{
+    static int fps_count = 0;
+    fps_count++;
+    auto milliseconds_elapsed = timer.getDuration().count();
+    if (milliseconds_elapsed > 1000)
+    {
+        gui.displayFPS(fps_count);
+        fps_count = 0;
+        timer.start();
+    }
 }

@@ -1,6 +1,7 @@
-#include "window.hpp"
+#include "include/window.hpp"
+#include "include/widget.hpp"
 #include <string>
-#include "widget.hpp"
+
 
 Window::Window(const char* streamName, uint16_t width, uint16_t height)
 {
