@@ -5,6 +5,147 @@
 #include <sstream>
 #include <string>
 
+#include "Generated_Code/VertexShader.h"
+#include "Generated_Code/PixelShader.h"
+#include "Generated_Code/TexVertexShader.h"
+#include "Generated_Code/TexPixelShader.h"
+
+int Scene0::loadMesh()
+{
+    //Step7/8:create shaders base off the shader.h's binary blob 
+    if (FAILED(dev->CreateVertexShader(TexVertexShaderBlob, std::size(TexVertexShaderBlob), NULL, pVS.GetAddressOf())))  return 87;
+    if (FAILED(dev->CreatePixelShader(TexPixelShaderBlob, std::size(TexPixelShaderBlob), NULL, pPS.GetAddressOf())))  return 88;
+
+    //Step9:create the input layout objectzz
+    D3D11_INPUT_ELEMENT_DESC ied[] =
+    {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+    };
+
+    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return 89;
+
+    D3D11_SAMPLER_DESC sampDesc;
+    ZeroMemory(&sampDesc, sizeof(sampDesc));
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    sampDesc.MinLOD = 0;
+    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+    if (FAILED(dev->CreateSamplerState(&sampDesc, samplerState.GetAddressOf()))) return 87;
+
+    D3D11_BUFFER_DESC bd;
+    ZeroMemory(&bd, sizeof(bd));
+
+    bd.Usage = D3D11_USAGE_DYNAMIC;
+    bd.ByteWidth = sizeof(planeVertices);
+    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return 90;
+
+    // copy the vertices into the buffer
+    D3D11_MAPPED_SUBRESOURCE ms;
+    devcon->Map(pVBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
+    memcpy(ms.pData, planeVertices, sizeof(planeVertices));                 // copy the data
+    devcon->Unmap(pVBuffer.Get(), NULL);
+
+    // create the index buffer
+    bd.Usage = D3D11_USAGE_DYNAMIC;
+    bd.ByteWidth = sizeof(planeIndices);
+    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    //The resource is to be mappable so that the CPU can change its content
+    //Resources created with this flag cannot be set as outputs of the pipeline.
+    bd.MiscFlags = 0;
+
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return 91;
+
+    devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
+    memcpy(ms.pData, planeIndices, sizeof(planeIndices));                   // copy the data
+    devcon->Unmap(pIBuffer.Get(), NULL);
+
+    // set up constant buffer
+    ZeroMemory(&bd, sizeof(bd));
+
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = 64;
+    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pCBuffer.GetAddressOf()))) return 92;
+    return 0;
+}
+
+int Scene1::loadMesh()
+{
+    if (FAILED(dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))  return 87;
+    if (FAILED(dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))  return 88;
+
+    D3D11_INPUT_ELEMENT_DESC ied[] =
+    {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+    };
+
+    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return 89;
+
+    D3D11_SAMPLER_DESC sampDesc;
+    ZeroMemory(&sampDesc, sizeof(sampDesc));
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    sampDesc.MinLOD = 0;
+    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+    if (FAILED(dev->CreateSamplerState(&sampDesc, samplerState.GetAddressOf()))) return 87;
+
+    D3D11_BUFFER_DESC bd;
+    ZeroMemory(&bd, sizeof(bd));
+
+    bd.Usage = D3D11_USAGE_DYNAMIC;
+    bd.ByteWidth = sizeof(cubeVertices);
+    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return 90;
+
+    // copy the vertices into the buffer
+    D3D11_MAPPED_SUBRESOURCE ms;
+    devcon->Map(pVBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
+    memcpy(ms.pData, cubeVertices, sizeof(cubeVertices));                 // copy the data
+    devcon->Unmap(pVBuffer.Get(), NULL);
+
+    // create the index buffer
+    bd.Usage = D3D11_USAGE_DYNAMIC;
+    bd.ByteWidth = sizeof(cubeIndices);
+    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    //The resource is to be mappable so that the CPU can change its content
+    //Resources created with this flag cannot be set as outputs of the pipeline.
+    bd.MiscFlags = 0;
+
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return 91;
+
+    devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
+    memcpy(ms.pData, cubeIndices, sizeof(cubeIndices));                   // copy the data
+    devcon->Unmap(pIBuffer.Get(), NULL);
+
+    // set up constant buffer
+    ZeroMemory(&bd, sizeof(bd));
+
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = 64;
+    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pCBuffer.GetAddressOf()))) return 92;
+    return 0;
+}
+
 Graphics::Graphics(const dx11device& dxObject, const GraphicsInfo& info)
 {
     dev = dxObject.dev;
@@ -12,44 +153,6 @@ Graphics::Graphics(const dx11device& dxObject, const GraphicsInfo& info)
     initDx(info);
     // should we also implement the class invariant here?
 }
-
-//Graphics::Graphics(const Graphics& other)
-//{
-//    dev = other.dev;
-//    devcon = other.devcon;
-//    swapchain = other.swapchain;
-//    backbuffer = other.backbuffer;
-//    depthStencilView = other.depthStencilView;
-//    pLayout = other.pLayout;
-//    pVS = other.pVS;
-//    pPS = other.pPS;
-//    pVBuffer = other.pVBuffer;
-//    pCBuffer = other.pCBuffer;
-//    pIBuffer = other.pIBuffer;
-//    m_rsTexture = other.m_rsTexture;
-//    m_rsTargetView = other.m_rsTargetView;
-//}
-//
-//Graphics& Graphics::operator=(const Graphics& other)
-//{
-//    if (this != &other) // not a self-assignment
-//    {
-//        dev = other.dev;
-//        devcon = other.devcon;
-//        swapchain = other.swapchain;
-//        backbuffer = other.backbuffer;
-//        depthStencilView = other.depthStencilView;
-//        pLayout = other.pLayout;
-//        pVS = other.pVS;
-//        pPS = other.pPS;
-//        pVBuffer = other.pVBuffer;
-//        pCBuffer = other.pCBuffer;
-//        pIBuffer = other.pIBuffer;
-//        m_rsTexture = other.m_rsTexture;
-//        m_rsTargetView = other.m_rsTargetView;
-//    }
-//    return *this;
-//}
 
 int Graphics::initDx(const GraphicsInfo& info)
 {
@@ -161,7 +264,6 @@ int Graphics::initDx(const GraphicsInfo& info)
     viewport.MaxDepth = 1;
     devcon->RSSetViewports(1, &viewport);
 
-
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -169,67 +271,6 @@ int Graphics::initDx(const GraphicsInfo& info)
     ImGui_ImplDX11_Init(dev.Get(), devcon.Get());
     ImGui::StyleColorsDark();
 
-    return 0;
-}
-
-int Graphics::loadMesh()
-{
-    //Step7/8:create shaders base off the shader.h's binary blob 
-    if (FAILED(dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))  return 87;
-    if (FAILED(dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))  return 88;
-
-    //Step9:create the input layout objectzz
-    D3D11_INPUT_ELEMENT_DESC ied[] =
-    {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-    };
-
-    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return 89;
-
-    Mesh m;
-    m.loadObj("E:/cube.obj");
-
-    D3D11_BUFFER_DESC bd;
-    ZeroMemory(&bd, sizeof(bd));
-
-    bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.ByteWidth = sizeof(VERTEX) * m.vertex.size();
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return 90;
-
-    // copy the vertices into the buffer
-    D3D11_MAPPED_SUBRESOURCE ms;
-    devcon->Map(pVBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
-    memcpy(ms.pData, m.vertex.data(), sizeof(m.vertex));                 // copy the data
-    devcon->Unmap(pVBuffer.Get(), NULL);
-
-    // create the index buffer
-    bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.ByteWidth = sizeof(uint16_t) * m.indices.size();
-    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    //The resource is to be mappable so that the CPU can change its content
-    //Resources created with this flag cannot be set as outputs of the pipeline.
-    bd.MiscFlags = 0;
-
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return 91;
-
-    devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
-    memcpy(ms.pData, m.indices.data(), sizeof(m.indices));                   // copy the data
-    devcon->Unmap(pIBuffer.Get(), NULL);
-
-
-    // set up constant buffer
-    ZeroMemory(&bd, sizeof(bd));
-
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = 64;
-    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pCBuffer.GetAddressOf()))) return 92;
     return 0;
 }
 
@@ -251,6 +292,7 @@ DXGI_FORMAT Graphics::toDxgiFormat(RSPixelFormat rsFormat)
 
 void Graphics::render(const DirectX::XMMATRIX matFinal)
 {
+    //depends on scene number, scene->render()
     ID3D11RenderTargetView* renderTargetList[2] = { backbuffer.Get(), renderstreamTarget[m_sHandle].view.Get() };
     devcon->OMSetRenderTargets(2, renderTargetList, nullptr);
     //devcon->OMSetRenderTargets(1, target.view.GetAddressOf(), nullptr);
@@ -272,43 +314,5 @@ void Graphics::render(const DirectX::XMMATRIX matFinal)
     devcon->VSSetShader(pVS.Get(), nullptr, 0);
     devcon->VSSetConstantBuffers(0, 1, pCBuffer.GetAddressOf());
     devcon->PSSetShader(pPS.Get(), nullptr, 0);
-    devcon->DrawIndexed(36, 0, 0);
-}
-
-void Mesh::loadObj(const std::string& path)
-{
-    std::ifstream file(path);
-    std::string line;
-    while (std::getline(file, line))
-    {
-        std::istringstream ss(line);
-        char t;
-        if (line.starts_with('v'))
-        {
-            DirectX::XMFLOAT3 v;
-            ss >> t >> v.x >> v.y >> v.z;
-            vertex.emplace_back(v);
-        }
-        if (strncmp(line.c_str(), "vt", 2))
-        {
-            printf("not doing anything for now");
-        }
-        if (strncmp(line.c_str(), "vn", 2))
-        {
-            printf("not doing anything for now");
-        }
-        if (line.starts_with('f'))
-        {
-            int d1, d2, d3;
-            //int ta;
-            // f 5/5/1 3/3/1 1/1/1
-            //ss >> t >> d1 >> t >> ta >> t >> ta
-            //    >> d2 >> t >> ta >> t >> ta
-            //    >> d3 >> t >> ta >> t >> ta;
-            ss >> t >> d1 >> d2 >> d3;
-            indices.emplace_back(d1 - 1);
-            indices.emplace_back(d2 - 1);
-            indices.emplace_back(d3 - 1);
-        }
-    }
+    devcon->DrawIndexed(m_indiceCount, 0, 0);
 }

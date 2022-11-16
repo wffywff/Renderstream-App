@@ -1,5 +1,6 @@
 #include "include/engine.hpp"
 
+
 RenderStream* RenderStream::instancePtr = NULL;
 
 int main()
@@ -79,26 +80,26 @@ int main()
             }
         }
 
-        for (size_t i = 0; i< renderInstances.size(); i++)
+        for (RenderInstance &renderInstance : renderInstances)
         {
             // only process the renderInstances still needed
-            if (renderInstances[i].m_closedByUser)
+            if (renderInstance.m_closedByUser)
             {
                 std::stringstream info;
                 info << "Skipping sending instance #" << i << " because user has closed the window.\n";
                 ErrorLogger::log(info.str());
                 continue;
             }
-            renderInstances[i].timer.start();
+            renderInstance.timer.start();
             CameraResponseData response;
             response.tTracked = frameData.tTracked;
-            if (rs->getFrameCamera(renderInstances[i].description.handle, &response.camera))
+            if (rs->getFrameCamera(renderInstance.description.handle, &response.camera))
             {
                 SenderFrameTypeData data;
-                data.dx11.resource = renderInstances[i].render(response).texture.Get();
-                rs->sendFrame(renderInstances[i].description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response);
-                renderInstances[i].fps();
-                renderInstances[i].graphic.getSwapChain()->Present(0, 0);
+                data.dx11.resource = renderInstance.render(response,frameData.scene).texture.Get();
+                rs->sendFrame(renderInstance.description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response);
+                renderInstance.fps();
+                renderInstance.graphic.getSwapChain()->Present(0, 0);
             }
         }
     }

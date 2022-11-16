@@ -22,7 +22,7 @@ public:
         gui = Widget();
         timer = Timer();
     }
-    RenderTarget render(const CameraResponseData&);
+    RenderTarget render(const CameraResponseData&, int sceneNum);
     void fps();
 
     Widget gui;
