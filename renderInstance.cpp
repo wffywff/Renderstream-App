@@ -1,5 +1,4 @@
-#include "include/engine.hpp"
-#include "include/scene.hpp"
+#include "include/RenderInstance.hpp"
 
 DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const CameraResponseData& response)
 {
@@ -55,16 +54,6 @@ DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const Cam
     return matFinal;
 }
 
-RenderTarget RenderInstance::render(const CameraResponseData& response, int sceneNum)
-{
-    //wh
-    auto scene = SceneFactory::createScene(sceneNum,);
-    scene->loadMesh();
-    auto m = calculateFrame(description, response);
-    graphic.render(m);
-    return graphic.renderstreamTarget[graphic.m_sHandle];
-}
-
 void RenderInstance::fps()
 {
     static int fps_count = 0;
@@ -76,4 +65,21 @@ void RenderInstance::fps()
         fps_count = 0;
         timer.start();
     }
+}
+
+RenderTarget RenderInstance::render(const CameraResponseData& response, int sceneNum)
+{
+    auto m = calculateFrame(description, response);
+    graphic.render(m, sceneNum);
+    return graphic.renderstreamTarget;
+}
+
+bool RenderInstance::check()
+{
+    if (!window.processMessage())
+    {
+        m_closedByUser = true;
+        return false;
+    }
+    return true;
 }

@@ -16,21 +16,23 @@
 class RenderInstance
 {
 public:
-    RenderInstance(Window& w, Graphics& g, StreamDescription &desc) :
-        window(w), graphic(g), description(desc)
+    RenderInstance(const StreamDescription& desc) :
+        description(desc),
+        window(Window(description.name, description.width, description.height)),
+        graphic(Graphics(dx11device(), GraphicsInfo(description.width, description.height, window.getHandle(), description.handle, description.format)))
     {
-        gui = Widget();
-        timer = Timer();
     }
+
     RenderTarget render(const CameraResponseData&, int sceneNum);
+    bool check();
+    bool m_closedByUser = false;
     void fps();
 
+    StreamDescription description;
+    Window window;
+    Graphics graphic;
     Widget gui;
     Timer timer;
-    Window window;
-    StreamDescription description;
-    Graphics graphic;
-    bool m_closedByUser = false;
 
 };
 

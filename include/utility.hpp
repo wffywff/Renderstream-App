@@ -30,7 +30,7 @@ public:
     }
     bool loadAPI();
     bool initialise();
-    void getStreams(StreamDescriptions* streams, uint32_t* nBytes);
+    StreamDescriptions* getStreamsDescriptions();
     RS_ERROR awaitFrameData(int timeoutMs, FrameData* data);
     bool getFrameCamera(StreamHandle streamHandle, CameraData* outCameraData);
     bool sendFrame(StreamHandle streamHandle, SenderFrameType frameType, SenderFrameTypeData data, const CameraResponseData* sendData);
@@ -41,6 +41,7 @@ private:
     static RenderStream* instancePtr;
     RenderStream() {};
     dx11device m_dx11;
+    std::vector<char> descriptionData;
 
     DECL_FN(initialise);
     DECL_FN(initialiseGpGpuWithDX11Device);

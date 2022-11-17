@@ -7,12 +7,13 @@
 #include <vector>
 #include <Shlwapi.h>
 #include <unordered_map>
+#include <memory>
 #pragma comment (lib, "Shlwapi.lib")
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3dcompiler.lib")
 
 
-//struct VERTEX { DirectX::XMFLOAT3 Position; DirectX::XMFLOAT3 Color; };
+struct VERTEX { DirectX::XMFLOAT3 Position; DirectX::XMFLOAT3 Color; };
 struct texVERTEX { DirectX::XMFLOAT3 pos; DirectX::XMFLOAT2 uv; };
 
 static constexpr DirectX::XMFLOAT3 cubeVertices[] =
@@ -56,64 +57,6 @@ static constexpr uint16_t planeIndices[] =
 {
     0, 1, 2,
     2, 1, 3,
-};
-
-class Scene
-{
-public:
-    virtual int loadMesh() = 0;
-    virtual void render() = 0;
-    Microsoft::WRL::ComPtr<ID3D11Device>        dev;
-    Microsoft::WRL::ComPtr<ID3D11DeviceContext> devcon;
-    Microsoft::WRL::ComPtr<ID3D11InputLayout> pLayout;
-    Microsoft::WRL::ComPtr<ID3D11VertexShader> pVS;
-    Microsoft::WRL::ComPtr<ID3D11PixelShader> pPS;
-    Microsoft::WRL::ComPtr<ID3D11Buffer> pVBuffer;
-    Microsoft::WRL::ComPtr<ID3D11Buffer> pCBuffer;
-    Microsoft::WRL::ComPtr<ID3D11Buffer> pIBuffer;
-    Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState;
-};
-
-class Scene0 : public Scene
-{
-public:
-    Scene0(const dx11device& dx11)
-    {
-        dev = dx11.dev;
-        devcon = dx11.devcon;
-    }
-    int loadMesh() override;
-    void render() override;
-
-};
-
-class Scene1 : public Scene
-{
-public:
-    Scene1(const dx11device& dx11)
-    {
-        dev = dx11.dev;
-        devcon = dx11.devcon;
-    }
-    int loadMesh() override;
-    void render() override;
-};
-
-class SceneFactory
-{
-public:
-    static std::unique_ptr<Scene> createScene(int sceneNumber, const dx11device& dx11)
-    {
-        switch (sceneNumber)
-        {
-        case 0:
-            return std::make_unique<Scene0>(dx11);
-        case 1:
-            return std::make_unique<Scene1>(dx11);
-        defualt:
-            return nullptr;
-        }
-    }
 };
 
 struct RenderTarget
@@ -177,18 +120,17 @@ struct GraphicsInfo
 class Graphics
 {
 public:
-    Graphics() {};
+    Graphics() = delete;
     Graphics(const dx11device& dxObject, const GraphicsInfo& info);
-    //TODO: can not delete copy constructor because RenderInstance's constructo rely on that. 
-    // However is that what I want?
 
     int initDx(const GraphicsInfo& info);
-    void render(const DirectX::XMMATRIX matFinal);
-    Microsoft::WRL::ComPtr<ID3D11Device> getDxDevice() const { return dev; };
-    Microsoft::WRL::ComPtr<IDXGISwapChain> getSwapChain() const { return swapchain; };
+    void render(const DirectX::XMMATRIX matFinal, const int indexCount);
     DXGI_FORMAT toDxgiFormat(RSPixelFormat rsFormat);
 
-    std::unordered_map<StreamHandle, RenderTarget> renderstreamTarget;
+    Microsoft::WRL::ComPtr<ID3D11Device> getDxDevice() const { return dev; };
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext> getDeviceContext() const { return devcon; };
+    Microsoft::WRL::ComPtr<IDXGISwapChain> getSwapChain() const { return swapchain; };
+    RenderTarget renderstreamTarget;
     StreamHandle m_sHandle = 0;
 
 private:
@@ -197,5 +139,61 @@ private:
     Microsoft::WRL::ComPtr<IDXGISwapChain> swapchain;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> backbuffer;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> pCBuffer;
 };
 
+class Scene
+{
+public:
+    virtual int loadMesh() = 0;
+    Microsoft::WRL::ComPtr<ID3D11Device>        dev;
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext> devcon;
+    Microsoft::WRL::ComPtr<ID3D11InputLayout> pLayout;
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> pVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> pPS;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> pVBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> pIBuffer;
+
+};
+
+class PlaneScene : public Scene
+{
+public:
+    PlaneScene(const Graphics& g)
+    {
+        dev = g.getDxDevice();
+        devcon = g.getDeviceContext();
+    }
+    int loadMesh() override;
+private:
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> preloadTexture;
+};
+
+class CubeScene : public Scene
+{
+public:
+    CubeScene(const Graphics& g)
+    {
+        dev = g.getDxDevice();
+        devcon = g.getDeviceContext();
+    }
+    int loadMesh() override;
+};
+
+class SceneFactory
+{
+public:
+    static std::shared_ptr<Scene> createScene(int sceneNumber, const Graphics& graphics)
+    {
+        switch (sceneNumber)
+        {
+        case 0:
+            return std::make_shared<PlaneScene>(graphics);
+        case 1:
+            return std::make_shared<CubeScene>(graphics);
+        default:
+            return nullptr;
+        }
+    }
+};

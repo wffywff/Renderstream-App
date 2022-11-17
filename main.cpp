@@ -1,4 +1,4 @@
-#include "include/engine.hpp"
+#include "include/renderInstance.hpp"
 
 
 RenderStream* RenderStream::instancePtr = NULL;
@@ -22,24 +22,12 @@ int main()
         {
             try
             {
-                uint32_t desSize = 0;
-                std::vector<char> data;
-                StreamDescriptions* descriptions = nullptr;
-
-                // first call would return RS_ERROR_BUFFER_OVERFLOW but populate desSize -- required size in bytes.
-                rs->getStreams(nullptr, &desSize);
-                data.resize(desSize);
-                // this time should be able to read bytes into the buffer of streamData, then reinterpret the memory as the struct StreamDescription
-                rs->getStreams(reinterpret_cast<StreamDescriptions*>(data.data()), &desSize);
-                descriptions = reinterpret_cast<StreamDescriptions*>(data.data());
-
+                StreamDescriptions* descriptions = rs->getStreamsDescriptions();
                 const size_t numStreams = descriptions ? descriptions->nStreams : 0;
                 for (size_t i = 0; i < numStreams; i++)
                 {
                     StreamDescription& description = descriptions->streams[i];
-                    Window w(description.name, description.width, description.height);
-                    Graphics g(rs->getDxDevice(), GraphicsInfo(description.width, description.height, w.getHandle(), description.handle, description.format));
-                    renderInstances.emplace_back(w, g, description);
+                    renderInstances.emplace_back(description);
                 }
             }
             catch (const std::exception& e)
@@ -66,30 +54,12 @@ int main()
             break;
         }
 
-        // make sure all renderInstances windows are still needed
-        std::vector<RenderInstance>::iterator itr;
-        for (itr = renderInstances.begin(); itr < renderInstances.end(); itr++)
-        {
-            if (!itr->window.processMessage())
-            {
-                int instanceNumber = itr - renderInstances.begin();
-                itr->m_closedByUser = true;
-                std::stringstream info;
-                info << "Exiting render instance #" << instanceNumber << " due to quit request from window interaction.\n";
-                ErrorLogger::log(info.str());
-            }
-        }
-
         for (RenderInstance &renderInstance : renderInstances)
         {
             // only process the renderInstances still needed
-            if (renderInstance.m_closedByUser)
-            {
-                std::stringstream info;
-                info << "Skipping sending instance #" << i << " because user has closed the window.\n";
-                ErrorLogger::log(info.str());
+            if (!renderInstance.check())
                 continue;
-            }
+
             renderInstance.timer.start();
             CameraResponseData response;
             response.tTracked = frameData.tTracked;
@@ -98,7 +68,6 @@ int main()
                 SenderFrameTypeData data;
                 data.dx11.resource = renderInstance.render(response,frameData.scene).texture.Get();
                 rs->sendFrame(renderInstance.description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response);
-                renderInstance.fps();
                 renderInstance.graphic.getSwapChain()->Present(0, 0);
             }
         }

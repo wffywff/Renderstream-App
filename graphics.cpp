@@ -10,11 +10,11 @@
 #include "Generated_Code/TexVertexShader.h"
 #include "Generated_Code/TexPixelShader.h"
 
-int Scene0::loadMesh()
+int PlaneScene::loadMesh()
 {
     //Step7/8:create shaders base off the shader.h's binary blob 
-    if (FAILED(dev->CreateVertexShader(TexVertexShaderBlob, std::size(TexVertexShaderBlob), NULL, pVS.GetAddressOf())))  return 87;
-    if (FAILED(dev->CreatePixelShader(TexPixelShaderBlob, std::size(TexPixelShaderBlob), NULL, pPS.GetAddressOf())))  return 88;
+    if (FAILED(dev->CreateVertexShader(TexVertexShaderBlob, std::size(TexVertexShaderBlob), NULL, pVS.GetAddressOf())))  return -1;
+    if (FAILED(dev->CreatePixelShader(TexPixelShaderBlob, std::size(TexPixelShaderBlob), NULL, pPS.GetAddressOf())))  return -1;
 
     //Step9:create the input layout objectzz
     D3D11_INPUT_ELEMENT_DESC ied[] =
@@ -23,29 +23,17 @@ int Scene0::loadMesh()
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 
-    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return 89;
-
-    D3D11_SAMPLER_DESC sampDesc;
-    ZeroMemory(&sampDesc, sizeof(sampDesc));
-    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    sampDesc.MinLOD = 0;
-    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
-    if (FAILED(dev->CreateSamplerState(&sampDesc, samplerState.GetAddressOf()))) return 87;
+    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return -1;
 
     D3D11_BUFFER_DESC bd;
     ZeroMemory(&bd, sizeof(bd));
 
     bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.ByteWidth = sizeof(planeVertices);
+    bd.ByteWidth = sizeof(texVERTEX) * ARRAYSIZE(planeVertices);
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return 90;
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return -1;
 
     // copy the vertices into the buffer
     D3D11_MAPPED_SUBRESOURCE ms;
@@ -62,35 +50,11 @@ int Scene0::loadMesh()
     //Resources created with this flag cannot be set as outputs of the pipeline.
     bd.MiscFlags = 0;
 
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return 91;
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return -1;
 
     devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
     memcpy(ms.pData, planeIndices, sizeof(planeIndices));                   // copy the data
     devcon->Unmap(pIBuffer.Get(), NULL);
-
-    // set up constant buffer
-    ZeroMemory(&bd, sizeof(bd));
-
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = 64;
-    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pCBuffer.GetAddressOf()))) return 92;
-    return 0;
-}
-
-int Scene1::loadMesh()
-{
-    if (FAILED(dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))  return 87;
-    if (FAILED(dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))  return 88;
-
-    D3D11_INPUT_ELEMENT_DESC ied[] =
-    {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-    };
-
-    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return 89;
 
     D3D11_SAMPLER_DESC sampDesc;
     ZeroMemory(&sampDesc, sizeof(sampDesc));
@@ -102,17 +66,42 @@ int Scene1::loadMesh()
     sampDesc.MinLOD = 0;
     sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-    if (FAILED(dev->CreateSamplerState(&sampDesc, samplerState.GetAddressOf()))) return 87;
+    if (FAILED(dev->CreateSamplerState(&sampDesc, samplerState.GetAddressOf()))) return -1;
+
+    UINT stride = sizeof(texVERTEX);
+    UINT offset = 0;
+    devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
+    devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    devcon->IASetInputLayout(pLayout.Get());
+    devcon->VSSetShader(pVS.Get(), nullptr, 0);
+    devcon->PSSetShader(pPS.Get(), nullptr, 0);
+    devcon->PSSetShaderResources(0, 1, preloadTexture.GetAddressOf());
+    return sizeof(planeIndices)/sizeof(uint16_t);
+}
+
+int CubeScene::loadMesh()
+{
+    if (FAILED(dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))  return -1;
+    if (FAILED(dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))  return -1;
+
+    D3D11_INPUT_ELEMENT_DESC ied[] =
+    {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+    };
+
+    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return -1;
 
     D3D11_BUFFER_DESC bd;
     ZeroMemory(&bd, sizeof(bd));
 
     bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.ByteWidth = sizeof(cubeVertices);
+    bd.ByteWidth = sizeof(VERTEX) * ARRAYSIZE(cubeVertices);
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return 90;
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return -1;
 
     // copy the vertices into the buffer
     D3D11_MAPPED_SUBRESOURCE ms;
@@ -122,28 +111,28 @@ int Scene1::loadMesh()
 
     // create the index buffer
     bd.Usage = D3D11_USAGE_DYNAMIC;
-    bd.ByteWidth = sizeof(cubeIndices);
+    bd.ByteWidth = sizeof(uint16_t) * ARRAYSIZE(cubeIndices);
     bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     //The resource is to be mappable so that the CPU can change its content
     //Resources created with this flag cannot be set as outputs of the pipeline.
     bd.MiscFlags = 0;
 
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return 91;
+    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return -1;
 
     devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
     memcpy(ms.pData, cubeIndices, sizeof(cubeIndices));                   // copy the data
     devcon->Unmap(pIBuffer.Get(), NULL);
 
-    // set up constant buffer
-    ZeroMemory(&bd, sizeof(bd));
-
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = 64;
-    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pCBuffer.GetAddressOf()))) return 92;
-    return 0;
+    UINT stride = sizeof(DirectX::XMFLOAT3);
+    UINT offset = 0;
+    devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
+    devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    devcon->IASetInputLayout(pLayout.Get());
+    devcon->VSSetShader(pVS.Get(), nullptr, 0);
+    devcon->PSSetShader(pPS.Get(), nullptr, 0);
+    return sizeof(cubeIndices) / sizeof(uint16_t);
 }
 
 Graphics::Graphics(const dx11device& dxObject, const GraphicsInfo& info)
@@ -156,12 +145,6 @@ Graphics::Graphics(const dx11device& dxObject, const GraphicsInfo& info)
 
 int Graphics::initDx(const GraphicsInfo& info)
 {
-    m_sHandle = info.m_streamHandle;
-
-    // populate the handle as the key
-    // setup a reference to target struct so we can create them 
-    RenderTarget& target = renderstreamTarget[m_sHandle];
-
     // make description for a 2dTexture
     D3D11_TEXTURE2D_DESC rtDesc;
     ZeroMemory(&rtDesc, sizeof(D3D11_TEXTURE2D_DESC));
@@ -182,14 +165,14 @@ int Graphics::initDx(const GraphicsInfo& info)
     rtDesc.CPUAccessFlags = 0;
     rtDesc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 
-    if (FAILED(dev->CreateTexture2D(&rtDesc, nullptr, target.texture.GetAddressOf())))
+    if (FAILED(dev->CreateTexture2D(&rtDesc, nullptr, renderstreamTarget.texture.GetAddressOf())))
         return 80;
 
     D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
     ZeroMemory(&rtvDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
     rtvDesc.Format = rtDesc.Format;
     rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-    if (FAILED(dev->CreateRenderTargetView(target.texture.Get(), &rtvDesc, target.view.GetAddressOf())))
+    if (FAILED(dev->CreateRenderTargetView(renderstreamTarget.texture.Get(), &rtvDesc, renderstreamTarget.view.GetAddressOf())))
         return 81;
 
     //Step2: create swapchain
@@ -290,10 +273,13 @@ DXGI_FORMAT Graphics::toDxgiFormat(RSPixelFormat rsFormat)
     }
 }
 
-void Graphics::render(const DirectX::XMMATRIX matFinal)
+void Graphics::render(const DirectX::XMMATRIX matFinal, const int sceneNum)
 {
+    auto scene = SceneFactory::createScene(1, *this);
+    int indexCount = scene->loadMesh();
+
     //depends on scene number, scene->render()
-    ID3D11RenderTargetView* renderTargetList[2] = { backbuffer.Get(), renderstreamTarget[m_sHandle].view.Get() };
+    ID3D11RenderTargetView* renderTargetList[2] = { backbuffer.Get(), renderstreamTarget.view.Get() };
     devcon->OMSetRenderTargets(2, renderTargetList, nullptr);
     //devcon->OMSetRenderTargets(1, target.view.GetAddressOf(), nullptr);
     const float clearColour[4] = { 0.f, 0.f, 0.f, 0.f };
@@ -301,18 +287,47 @@ void Graphics::render(const DirectX::XMMATRIX matFinal)
     {
         devcon->ClearRenderTargetView(renderTargetList[i], clearColour);
     }
+    // set up constant buffer
+    D3D11_BUFFER_DESC bd;
+    ZeroMemory(&bd, sizeof(bd));
 
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = 64;
+    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+
+    dev->CreateBuffer(&bd, NULL, pCBuffer.GetAddressOf());
     devcon->UpdateSubresource(pCBuffer.Get(), 0, nullptr, &matFinal, 0, 0);
-
-    // Draw cube
-    UINT stride = sizeof(DirectX::XMFLOAT3);
-    UINT offset = 0;
-    devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
-    devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    devcon->IASetInputLayout(pLayout.Get());
-    devcon->VSSetShader(pVS.Get(), nullptr, 0);
     devcon->VSSetConstantBuffers(0, 1, pCBuffer.GetAddressOf());
-    devcon->PSSetShader(pPS.Get(), nullptr, 0);
-    devcon->DrawIndexed(m_indiceCount, 0, 0);
+    // Draw cube
+
+    devcon->DrawIndexed(indexCount, 0, 0);
 }
+
+/*
+* 	float bgcolor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	this->deviceContext->ClearRenderTargetView(this->renderTargetView.Get(), bgcolor);
+	this->deviceContext->ClearDepthStencilView(this->depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+	this->deviceContext->IASetInputLayout(this->vertexshader.GetInputLayout());
+	this->deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	this->deviceContext->RSSetState(this->rasterizerState.Get());
+	this->deviceContext->OMSetDepthStencilState(this->depthStencilState.Get(), 0);
+	this->deviceContext->PSSetSamplers(0, 1, this->samplerState.GetAddressOf());
+	this->deviceContext->VSSetShader(vertexshader.GetShader(), NULL, 0);
+	this->deviceContext->PSSetShader(pixelshader.GetShader(), NULL, 0);
+
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+	//Square
+	this->deviceContext->PSSetShaderResources(0, 1, this->myTexture.GetAddressOf());
+	this->deviceContext->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
+	this->deviceContext->Draw(6, 0);
+	
+	//Draw Text
+	spriteBatch->Begin();
+	spriteFont->DrawString(spriteBatch.get(), L"HELLO WORLD", DirectX::XMFLOAT2(0, 0), DirectX::Colors::White, 0.0f, DirectX::XMFLOAT2(0.0f,0.0f), DirectX::XMFLOAT2(1.0f, 1.0f));
+	spriteBatch->End();
+
+	this->swapchain->Present(1, NULL);
+*/

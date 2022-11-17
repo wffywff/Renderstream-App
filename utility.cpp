@@ -74,9 +74,15 @@ bool RenderStream::initialise()
     return true;
 }
 
-void RenderStream::getStreams(StreamDescriptions* streams, uint32_t* nBytes)
+StreamDescriptions* RenderStream::getStreamsDescriptions()
 {
-    m_getStreams(streams, nBytes);
+    uint32_t desSize = 0;
+    // first call would return RS_ERROR_BUFFER_OVERFLOW but populate desSize -- required size in bytes.
+    m_getStreams(nullptr, &desSize);
+    descriptionData.resize(desSize);
+    // this time should be able to read bytes into the buffer of streamData, then reinterpret the memory as the struct StreamDescription
+    m_getStreams(reinterpret_cast<StreamDescriptions*>(descriptionData.data()), &desSize);
+    return reinterpret_cast<StreamDescriptions*>(descriptionData.data());
 }
 
 RS_ERROR RenderStream::awaitFrameData(int timeoutMs, FrameData* data)
@@ -122,7 +128,12 @@ void ErrorLogger::log(const std::string& info)
     PathRemoveFileSpec(path);
     PathAppend(path, L"app_log.txt");
     fs.open(path, std::ios::out | std::ios::app);
-    fs << info <<"\n";
+
+    time_t now = time(NULL);
+    char str[26] = {};
+    ctime_s(str, 26, &now);
+
+    fs << str << info <<"\n";
     fs.flush();
     fs.close();
 }

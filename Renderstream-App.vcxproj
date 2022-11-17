@@ -142,7 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="engine.cpp" />
+    <ClCompile Include="renderInstance.cpp" />
     <ClCompile Include="widget.cpp" />
     <ClCompile Include="include\imgui\imgui.cpp" />
     <ClCompile Include="include\imgui\imgui_demo.cpp" />
@@ -159,7 +159,7 @@
   <ItemGroup>
     <ClInclude Include="Generated_Code\TexPixelShader.h" />
     <ClInclude Include="Generated_Code\TexVertexShader.h" />
-    <ClInclude Include="include\engine.hpp" />
+    <ClInclude Include="include\renderInstance.hpp" />
     <ClInclude Include="Generated_Code\PixelShader.h" />
     <ClInclude Include="Generated_Code\VertexShader.h" />
     <ClInclude Include="include\graphics.hpp" />
