@@ -1,5 +1,6 @@
 #pragma once
 #include "include/utility.hpp"
+#include "include/dx11.hpp"
 
 
 bool RenderStream::loadAPI()
@@ -127,6 +128,7 @@ void ErrorLogger::log(const std::string& info)
     GetModuleFileName(NULL, path, MAX_PATH);
     PathRemoveFileSpec(path);
     PathAppend(path, L"app_log.txt");
+
     fs.open(path, std::ios::out | std::ios::app);
 
     time_t now = time(NULL);

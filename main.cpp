@@ -1,8 +1,6 @@
 #include "include/renderInstance.hpp"
 
-
 RenderStream* RenderStream::instancePtr = NULL;
-
 int main()
 {
 #ifdef _DEBUG
@@ -56,20 +54,10 @@ int main()
 
         for (RenderInstance &renderInstance : renderInstances)
         {
-            // only process the renderInstances still needed
-            if (!renderInstance.check())
-                continue;
-
-            renderInstance.timer.start();
             CameraResponseData response;
             response.tTracked = frameData.tTracked;
-            if (rs->getFrameCamera(renderInstance.description.handle, &response.camera))
-            {
-                SenderFrameTypeData data;
-                data.dx11.resource = renderInstance.render(response,frameData.scene).texture.Get();
-                rs->sendFrame(renderInstance.description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response);
-                renderInstance.graphic.getSwapChain()->Present(0, 0);
-            }
+            renderInstance.render(response, frameData.scene);
+            renderInstance.present();
         }
     }
     rs->shutdown();

@@ -12,12 +12,11 @@ void Widget::displayFPS(const int fps)
         m_avgFrameRate = fps;
     }
 
-    // Any application code here
     ImGui::Begin("Debug Info");
     std::string fpsString = "FPS: " + std::to_string(m_avgFrameRate);
     ImGui::Text(fpsString.c_str());
     ImGui::End();
-    // Render dear imgui into screen
+
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }

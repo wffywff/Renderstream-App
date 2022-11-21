@@ -1,5 +1,19 @@
 #include "include/RenderInstance.hpp"
 
+
+void RenderInstance::fps()
+{
+    static int fps_count = 0;
+    fps_count++;
+    auto milliseconds_elapsed = timer.getDuration().count();
+    if (milliseconds_elapsed > 1000)
+    {
+        gui.displayFPS(fps_count);
+        fps_count = 0;
+        timer.start();
+    }
+}
+
 DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const CameraResponseData& response)
 {
     static float Time = 0.0f; Time += 0.01f;
@@ -54,32 +68,32 @@ DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const Cam
     return matFinal;
 }
 
-void RenderInstance::fps()
+RenderTarget RenderInstance::graphicRender(CameraResponseData& response, int sceneNum)
 {
-    static int fps_count = 0;
-    fps_count++;
-    auto milliseconds_elapsed = timer.getDuration().count();
-    if (milliseconds_elapsed > 1000)
-    {
-        gui.displayFPS(fps_count);
-        fps_count = 0;
-        timer.start();
-    }
-}
-
-RenderTarget RenderInstance::render(const CameraResponseData& response, int sceneNum)
-{
-    auto m = calculateFrame(description, response);
+    DirectX::XMMATRIX m = calculateFrame(description, response);
     graphic.render(m, sceneNum);
     return graphic.renderstreamTarget;
 }
 
-bool RenderInstance::check()
+void RenderInstance::render(CameraResponseData& response, int sceneNum)
 {
-    if (!window.processMessage())
+    if (window.processMessage())
     {
-        m_closedByUser = true;
-        return false;
+        timer.start();
+        RenderStream* rs = RenderStream::getInstance();
+        if (rs->getFrameCamera(description.handle, &response.camera))
+        {
+            SenderFrameTypeData data;
+            data.dx11.resource = graphicRender(response, sceneNum).texture.Get();
+            rs->sendFrame(description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response);
+        }
+
+        // TODO: currently the fps and widget is not showing 
+        fps();
     }
-    return true;
+}
+
+void RenderInstance::present()
+{
+    graphic.getSwapChain()->Present(0, 0);
 }

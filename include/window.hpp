@@ -2,19 +2,17 @@
 
 #pragma once
 #include <windows.h>
-#include <iostream>
 
-
-//TODO 
-
-struct Window
+class Window
 {
 public:
-    Window(const char* streamName, uint16_t width, uint16_t height);
+    Window() = delete;
+    Window(const char* streamName, size_t width, size_t height);
     HWND getHandle() { return m_handle; };
-    static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     bool processMessage();
+
 private:
+    static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     HWND m_handle = NULL; 
-    std::wstring m_window_class_wide = L""; 
+    LPCWSTR m_window_class_wide;
 };

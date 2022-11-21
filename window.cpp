@@ -1,9 +1,7 @@
 #include "include/window.hpp"
 #include "include/widget.hpp"
-#include <string>
 
-
-Window::Window(const char* streamName, uint16_t width, uint16_t height)
+Window::Window(const char* streamName, size_t width, size_t height)
 {
     HWND hWnd;
     WNDCLASSEX wc;
@@ -27,7 +25,7 @@ Window::Window(const char* streamName, uint16_t width, uint16_t height)
     MultiByteToWideChar(CP_ACP, 0, streamName, -1, wStreamName, 4096);
 
     hWnd = CreateWindowEx(NULL,
-        m_window_class_wide.c_str(),
+        m_window_class_wide,
         wStreamName,
         WS_OVERLAPPEDWINDOW,
         0,
@@ -74,7 +72,7 @@ bool Window::processMessage()
         if (!IsWindow(m_handle))
         {
             m_handle = NULL; 
-            UnregisterClass(m_window_class_wide.c_str(), NULL);
+            UnregisterClass(m_window_class_wide, NULL);
             return false;
         }
     }

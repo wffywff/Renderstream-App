@@ -8,7 +8,7 @@
 #include <iostream>
 #include <Shlwapi.h>
 #include "include/d3renderstream.h"
-#include "graphics.hpp"
+#include "include/dx11.hpp"
 
 #define DECL_FN(FUNC_NAME) decltype(rs_ ## FUNC_NAME)* m_ ## FUNC_NAME = nullptr
 
@@ -18,7 +18,7 @@ public:
     RenderStream(const RenderStream& obj) = delete;
     static RenderStream* getInstance()
     {
-        if (instancePtr == NULL)
+        if (instancePtr == nullptr)
         {
             instancePtr = new RenderStream();
             return instancePtr;

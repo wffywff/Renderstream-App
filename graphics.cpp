@@ -4,26 +4,38 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <WICTextureLoader.h>
+#include <shobjidl.h> 
+
 
 #include "Generated_Code/VertexShader.h"
 #include "Generated_Code/PixelShader.h"
 #include "Generated_Code/TexVertexShader.h"
 #include "Generated_Code/TexPixelShader.h"
 
-int PlaneScene::loadMesh()
+auto failureReport = [](const char* msg)
+{
+    ErrorLogger::log(msg);
+    return -1;
+};
+
+int PlaneScene::loadScene()
 {
     //Step7/8:create shaders base off the shader.h's binary blob 
-    if (FAILED(dev->CreateVertexShader(TexVertexShaderBlob, std::size(TexVertexShaderBlob), NULL, pVS.GetAddressOf())))  return -1;
-    if (FAILED(dev->CreatePixelShader(TexPixelShaderBlob, std::size(TexPixelShaderBlob), NULL, pPS.GetAddressOf())))  return -1;
+    if (FAILED(dxDeviceScene.dev->CreateVertexShader(TexVertexShaderBlob, std::size(TexVertexShaderBlob), NULL, pVS.GetAddressOf())))  
+        return failureReport("Failed to create vertex shader.");
+    if (FAILED(dxDeviceScene.dev->CreatePixelShader(TexPixelShaderBlob, std::size(TexPixelShaderBlob), NULL, pPS.GetAddressOf())))
+        return failureReport("Failed to create pixel shader.");
 
-    //Step9:create the input layout objectzz
+    //Step9:create the input layout
     D3D11_INPUT_ELEMENT_DESC ied[] =
     {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 
-    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout)))
+        return failureReport("Failed to create input layout.");
 
     D3D11_BUFFER_DESC bd;
     ZeroMemory(&bd, sizeof(bd));
@@ -33,13 +45,14 @@ int PlaneScene::loadMesh()
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf())))
+        return failureReport("Failed to create vertex buffer.");
 
     // copy the vertices into the buffer
     D3D11_MAPPED_SUBRESOURCE ms;
-    devcon->Map(pVBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
+    dxDeviceScene.devcon->Map(pVBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
     memcpy(ms.pData, planeVertices, sizeof(planeVertices));                 // copy the data
-    devcon->Unmap(pVBuffer.Get(), NULL);
+    dxDeviceScene.devcon->Unmap(pVBuffer.Get(), NULL);
 
     // create the index buffer
     bd.Usage = D3D11_USAGE_DYNAMIC;
@@ -50,11 +63,12 @@ int PlaneScene::loadMesh()
     //Resources created with this flag cannot be set as outputs of the pipeline.
     bd.MiscFlags = 0;
 
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf())))
+        return failureReport("Failed to create index shader.");
 
-    devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
+    dxDeviceScene.devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
     memcpy(ms.pData, planeIndices, sizeof(planeIndices));                   // copy the data
-    devcon->Unmap(pIBuffer.Get(), NULL);
+    dxDeviceScene.devcon->Unmap(pIBuffer.Get(), NULL);
 
     D3D11_SAMPLER_DESC sampDesc;
     ZeroMemory(&sampDesc, sizeof(sampDesc));
@@ -66,24 +80,65 @@ int PlaneScene::loadMesh()
     sampDesc.MinLOD = 0;
     sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
-    if (FAILED(dev->CreateSamplerState(&sampDesc, samplerState.GetAddressOf()))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateSamplerState(&sampDesc, samplerState.GetAddressOf())))
+        return failureReport("Failed to create sampler state.");
+
+    if (FAILED(DirectX::CreateWICTextureFromFile(dxDeviceScene.dev.Get(), texturePath, nullptr, preloadTexture.GetAddressOf())))
+        return failureReport("Failed to create texture from file.");
 
     UINT stride = sizeof(texVERTEX);
     UINT offset = 0;
-    devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
-    devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    devcon->IASetInputLayout(pLayout.Get());
-    devcon->VSSetShader(pVS.Get(), nullptr, 0);
-    devcon->PSSetShader(pPS.Get(), nullptr, 0);
-    devcon->PSSetShaderResources(0, 1, preloadTexture.GetAddressOf());
+    dxDeviceScene.devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
+    dxDeviceScene.devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    dxDeviceScene.devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    dxDeviceScene.devcon->IASetInputLayout(pLayout.Get());
+    dxDeviceScene.devcon->VSSetShader(pVS.Get(), nullptr, 0);
+    dxDeviceScene.devcon->PSSetShader(pPS.Get(), nullptr, 0);
+    dxDeviceScene.devcon->PSSetShaderResources(0, 1, preloadTexture.GetAddressOf());
     return sizeof(planeIndices)/sizeof(uint16_t);
 }
 
-int CubeScene::loadMesh()
+void PlaneScene::selectTexture()
 {
-    if (FAILED(dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))  return -1;
-    if (FAILED(dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))  return -1;
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+        COINIT_DISABLE_OLE1DDE);
+    if (SUCCEEDED(hr))
+    {
+        IFileOpenDialog* pFileOpen;
+        hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+            IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+        if (SUCCEEDED(hr))
+        {
+            hr = pFileOpen->Show(NULL);
+            if (SUCCEEDED(hr))
+            {
+                IShellItem* pItem;
+                hr = pFileOpen->GetResult(&pItem);
+                if (SUCCEEDED(hr))
+                {
+                    LPWSTR pszFilePath;
+                    hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+                    if (SUCCEEDED(hr))
+                    {
+                        texturePath = pszFilePath;
+                    }
+                    pItem->Release();
+                }
+            }
+            else if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+            {
+                MessageBox(NULL, L"No texture for plane.", L"Error", MB_OK);
+            }
+            pFileOpen->Release();
+        }
+        CoUninitialize();
+    }
+}
+
+int CubeScene::loadScene()
+{
+    if (FAILED(dxDeviceScene.dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))  return -1;
+    if (FAILED(dxDeviceScene.dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))  return -1;
 
     D3D11_INPUT_ELEMENT_DESC ied[] =
     {
@@ -91,7 +146,7 @@ int CubeScene::loadMesh()
         {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 
-    if (FAILED(dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return -1;
 
     D3D11_BUFFER_DESC bd;
     ZeroMemory(&bd, sizeof(bd));
@@ -101,13 +156,13 @@ int CubeScene::loadMesh()
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return -1;
 
     // copy the vertices into the buffer
     D3D11_MAPPED_SUBRESOURCE ms;
-    devcon->Map(pVBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
+    dxDeviceScene.devcon->Map(pVBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
     memcpy(ms.pData, cubeVertices, sizeof(cubeVertices));                 // copy the data
-    devcon->Unmap(pVBuffer.Get(), NULL);
+    dxDeviceScene.devcon->Unmap(pVBuffer.Get(), NULL);
 
     // create the index buffer
     bd.Usage = D3D11_USAGE_DYNAMIC;
@@ -118,29 +173,28 @@ int CubeScene::loadMesh()
     //Resources created with this flag cannot be set as outputs of the pipeline.
     bd.MiscFlags = 0;
 
-    if (FAILED(dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return -1;
 
-    devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
+    dxDeviceScene.devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
     memcpy(ms.pData, cubeIndices, sizeof(cubeIndices));                   // copy the data
-    devcon->Unmap(pIBuffer.Get(), NULL);
+    dxDeviceScene.devcon->Unmap(pIBuffer.Get(), NULL);
 
     UINT stride = sizeof(DirectX::XMFLOAT3);
     UINT offset = 0;
-    devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
-    devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-    devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    devcon->IASetInputLayout(pLayout.Get());
-    devcon->VSSetShader(pVS.Get(), nullptr, 0);
-    devcon->PSSetShader(pPS.Get(), nullptr, 0);
+    dxDeviceScene.devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
+    dxDeviceScene.devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    dxDeviceScene.devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    dxDeviceScene.devcon->IASetInputLayout(pLayout.Get());
+    dxDeviceScene.devcon->VSSetShader(pVS.Get(), nullptr, 0);
+    dxDeviceScene.devcon->PSSetShader(pPS.Get(), nullptr, 0);
     return sizeof(cubeIndices) / sizeof(uint16_t);
 }
 
 Graphics::Graphics(const dx11device& dxObject, const GraphicsInfo& info)
 {
-    dev = dxObject.dev;
-    devcon = dxObject.devcon;
+    //copy the dx11device, increment ref count of dev and devcon
+    dxDevice = dxObject;
     initDx(info);
-    // should we also implement the class invariant here?
 }
 
 int Graphics::initDx(const GraphicsInfo& info)
@@ -165,14 +219,14 @@ int Graphics::initDx(const GraphicsInfo& info)
     rtDesc.CPUAccessFlags = 0;
     rtDesc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 
-    if (FAILED(dev->CreateTexture2D(&rtDesc, nullptr, renderstreamTarget.texture.GetAddressOf())))
+    if (FAILED(dxDevice.dev->CreateTexture2D(&rtDesc, nullptr, renderstreamTarget.texture.GetAddressOf())))
         return 80;
 
     D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
     ZeroMemory(&rtvDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
     rtvDesc.Format = rtDesc.Format;
     rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-    if (FAILED(dev->CreateRenderTargetView(renderstreamTarget.texture.Get(), &rtvDesc, renderstreamTarget.view.GetAddressOf())))
+    if (FAILED(dxDevice.dev->CreateRenderTargetView(renderstreamTarget.texture.Get(), &rtvDesc, renderstreamTarget.view.GetAddressOf())))
         return 81;
 
     //Step2: create swapchain
@@ -191,14 +245,14 @@ int Graphics::initDx(const GraphicsInfo& info)
     scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;    // allow full-screen switching
 
     Microsoft::WRL::ComPtr<IDXGIDevice1> dxgiDevice;
-    dev.As(&dxgiDevice);
+    dxDevice.dev.As(&dxgiDevice);
     Microsoft::WRL::ComPtr<IDXGIAdapter> dxgiAdapter;
     dxgiDevice->GetAdapter(dxgiAdapter.GetAddressOf());
     Microsoft::WRL::ComPtr<IDXGIFactory1> dxgiFactory;
     dxgiAdapter->GetParent(__uuidof(IDXGIFactory1), &dxgiFactory);
 
     HRESULT hr = dxgiFactory->CreateSwapChain(
-        dev.Get(),
+        dxDevice.dev.Get(),
         &scd,
         &swapchain
     );
@@ -212,7 +266,7 @@ int Graphics::initDx(const GraphicsInfo& info)
     if (FAILED(swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer))) return 83;
 
     //Step4:creat renderTargetView, which is a way to access resource, bounded to the buffer resource
-    if (FAILED(dev->CreateRenderTargetView(pBackBuffer, NULL, backbuffer.GetAddressOf()))) return 84;
+    if (FAILED(dxDevice.dev->CreateRenderTargetView(pBackBuffer, NULL, backbuffer.GetAddressOf()))) return 84;
     //note: once renderTargetView is created, the true backBuffer is no longer in use, release it. 
     pBackBuffer->Release();
 
@@ -229,14 +283,14 @@ int Graphics::initDx(const GraphicsInfo& info)
     texd.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
     ID3D11Texture2D* pDepthBuffer;
-    if (FAILED(dev->CreateTexture2D(&texd, NULL, &pDepthBuffer))) return 85;
+    if (FAILED(dxDevice.dev->CreateTexture2D(&texd, NULL, &pDepthBuffer))) return 85;
 
     //Step6:create the depth stencil 
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvd;
     ZeroMemory(&dsvd, sizeof(dsvd));
     dsvd.Format = DXGI_FORMAT_D32_FLOAT;
     dsvd.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
-    if (FAILED(dev->CreateDepthStencilView(pDepthBuffer, &dsvd, depthStencilView.GetAddressOf()))) return 86;
+    if (FAILED(dxDevice.dev->CreateDepthStencilView(pDepthBuffer, &dsvd, depthStencilView.GetAddressOf()))) return 86;
     pDepthBuffer->Release();
 
     D3D11_VIEWPORT viewport;
@@ -245,13 +299,13 @@ int Graphics::initDx(const GraphicsInfo& info)
     viewport.Height = static_cast<float>(info.m_height);
     viewport.MinDepth = 0;
     viewport.MaxDepth = 1;
-    devcon->RSSetViewports(1, &viewport);
+    dxDevice.devcon->RSSetViewports(1, &viewport);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplWin32_Init(info.m_window);
-    ImGui_ImplDX11_Init(dev.Get(), devcon.Get());
+    ImGui_ImplDX11_Init(dxDevice.dev.Get(), dxDevice.devcon.Get());
     ImGui::StyleColorsDark();
 
     return 0;
@@ -273,19 +327,19 @@ DXGI_FORMAT Graphics::toDxgiFormat(RSPixelFormat rsFormat)
     }
 }
 
-void Graphics::render(const DirectX::XMMATRIX matFinal, const int sceneNum)
+void Graphics::render(const DirectX::XMMATRIX &matFinal, const int sceneNum)
 {
-    auto scene = SceneFactory::createScene(1, *this);
-    int indexCount = scene->loadMesh();
+    //TODO: currently hard-coded to load scene till schema is incorporated
+    auto scene = SceneFactory::createScene(1, dxDevice);
+    int indexCount = scene->loadScene();
 
-    //depends on scene number, scene->render()
     ID3D11RenderTargetView* renderTargetList[2] = { backbuffer.Get(), renderstreamTarget.view.Get() };
-    devcon->OMSetRenderTargets(2, renderTargetList, nullptr);
-    //devcon->OMSetRenderTargets(1, target.view.GetAddressOf(), nullptr);
+    dxDevice.devcon->OMSetRenderTargets(2, renderTargetList, nullptr);
+
     const float clearColour[4] = { 0.f, 0.f, 0.f, 0.f };
     for (int i = 0; i < 2; i++)
     {
-        devcon->ClearRenderTargetView(renderTargetList[i], clearColour);
+        dxDevice.devcon->ClearRenderTargetView(renderTargetList[i], clearColour);
     }
     // set up constant buffer
     D3D11_BUFFER_DESC bd;
@@ -295,39 +349,9 @@ void Graphics::render(const DirectX::XMMATRIX matFinal, const int sceneNum)
     bd.ByteWidth = 64;
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 
-    dev->CreateBuffer(&bd, NULL, pCBuffer.GetAddressOf());
-    devcon->UpdateSubresource(pCBuffer.Get(), 0, nullptr, &matFinal, 0, 0);
-    devcon->VSSetConstantBuffers(0, 1, pCBuffer.GetAddressOf());
-    // Draw cube
+    dxDevice.dev->CreateBuffer(&bd, NULL, pCBuffer.GetAddressOf());
+    dxDevice.devcon->UpdateSubresource(pCBuffer.Get(), 0, nullptr, &matFinal, 0, 0);
+    dxDevice.devcon->VSSetConstantBuffers(0, 1, pCBuffer.GetAddressOf());
 
-    devcon->DrawIndexed(indexCount, 0, 0);
+    dxDevice.devcon->DrawIndexed(indexCount, 0, 0);
 }
-
-/*
-* 	float bgcolor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	this->deviceContext->ClearRenderTargetView(this->renderTargetView.Get(), bgcolor);
-	this->deviceContext->ClearDepthStencilView(this->depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-	this->deviceContext->IASetInputLayout(this->vertexshader.GetInputLayout());
-	this->deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	this->deviceContext->RSSetState(this->rasterizerState.Get());
-	this->deviceContext->OMSetDepthStencilState(this->depthStencilState.Get(), 0);
-	this->deviceContext->PSSetSamplers(0, 1, this->samplerState.GetAddressOf());
-	this->deviceContext->VSSetShader(vertexshader.GetShader(), NULL, 0);
-	this->deviceContext->PSSetShader(pixelshader.GetShader(), NULL, 0);
-
-	UINT stride = sizeof(Vertex);
-	UINT offset = 0;
-
-	//Square
-	this->deviceContext->PSSetShaderResources(0, 1, this->myTexture.GetAddressOf());
-	this->deviceContext->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-	this->deviceContext->Draw(6, 0);
-	
-	//Draw Text
-	spriteBatch->Begin();
-	spriteFont->DrawString(spriteBatch.get(), L"HELLO WORLD", DirectX::XMFLOAT2(0, 0), DirectX::Colors::White, 0.0f, DirectX::XMFLOAT2(0.0f,0.0f), DirectX::XMFLOAT2(1.0f, 1.0f));
-	spriteBatch->End();
-
-	this->swapchain->Present(1, NULL);
-*/

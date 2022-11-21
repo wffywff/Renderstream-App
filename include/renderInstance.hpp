@@ -12,10 +12,11 @@
 #include "widget.hpp"
 #include "window.hpp"
 
-//TODO: do I need a constructor or descrutor for the these classes..?
+
 class RenderInstance
 {
 public:
+    RenderInstance() = delete;
     RenderInstance(const StreamDescription& desc) :
         description(desc),
         window(Window(description.name, description.width, description.height)),
@@ -23,9 +24,11 @@ public:
     {
     }
 
-    RenderTarget render(const CameraResponseData&, int sceneNum);
-    bool check();
-    bool m_closedByUser = false;
+    void render(CameraResponseData& response, int sceneNum);
+    void present();
+
+private:
+    RenderTarget graphicRender(CameraResponseData& response, int sceneNum);
     void fps();
 
     StreamDescription description;
@@ -33,6 +36,5 @@ public:
     Graphics graphic;
     Widget gui;
     Timer timer;
-
 };
 
