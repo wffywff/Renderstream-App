@@ -9,9 +9,9 @@ RenderStream App is an application that utilizes [RenderStream API](https://gith
 
 ## Design Goals:
 This application can simulate failure conditions easily to faciliate with troubleshooting of Renderstream, for example:
-*one render instance taking longer than the rest 
-*one render instance has crashed 
-*display fps of the render instance
-*display network information
+* one render instance taking longer than the rest 
+* one render instance has crashed 
+* display fps of the render instance
+* display network information
 
 This application is not designed for production, therefore error handling aims to illustrates failure to user quickly.
