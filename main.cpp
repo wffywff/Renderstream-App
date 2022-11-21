@@ -56,7 +56,7 @@ int main()
         {
             CameraResponseData response;
             response.tTracked = frameData.tTracked;
-            renderInstance.render(response, frameData.scene);
+            renderInstance.sendFrame(response, frameData.scene);
             renderInstance.present();
         }
     }

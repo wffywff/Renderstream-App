@@ -3,9 +3,6 @@
 #include <windows.h>
 #include <string>
 #include <fstream>
-#include <d3d11.h>
-#include <wrl/client.h>
-#pragma comment (lib, "d3d11.lib")
 
 #include "utility.hpp"
 #include "graphics.hpp"
@@ -24,7 +21,7 @@ public:
     {
     }
 
-    void render(CameraResponseData& response, int sceneNum);
+    void sendFrame(CameraResponseData& response, int sceneNum);
     void present();
 
 private:

@@ -70,12 +70,11 @@ DirectX::XMMATRIX calculateFrame(const StreamDescription& description, const Cam
 
 RenderTarget RenderInstance::graphicRender(CameraResponseData& response, int sceneNum)
 {
-    DirectX::XMMATRIX m = calculateFrame(description, response);
-    graphic.render(m, sceneNum);
+    graphic.render(calculateFrame(description, response), sceneNum);
     return graphic.renderstreamTarget;
 }
 
-void RenderInstance::render(CameraResponseData& response, int sceneNum)
+void RenderInstance::sendFrame(CameraResponseData& response, int sceneNum)
 {
     if (window.processMessage())
     {
@@ -88,7 +87,7 @@ void RenderInstance::render(CameraResponseData& response, int sceneNum)
             rs->sendFrame(description.handle, RS_FRAMETYPE_DX11_TEXTURE, data, &response);
         }
 
-        // TODO: currently the fps and widget is not showing 
+        // TODO: Need to investigate. currently the fps and widget is not showing 
         fps();
     }
 }

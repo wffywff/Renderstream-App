@@ -76,9 +76,6 @@ public:
     PlaneScene(const dx11device& dxDevice)
     {
         dxDeviceScene = dxDevice;
-        // TODO: currently scene is created every frame
-        // therefore can not prompt selection every frame.
-        // Need to figure out where to call selectTexture();
     }
     int loadScene() override;
 private:
@@ -140,11 +137,9 @@ public:
     Graphics() = delete;
     Graphics(const dx11device& dxDevice, const GraphicsInfo& info);
 
-    int initDx(const GraphicsInfo& info);
+    void initDx(const GraphicsInfo& info);
     void render(const DirectX::XMMATRIX& matFinal, const int indexCount);
 
-    Microsoft::WRL::ComPtr<ID3D11Device> getDxDevice() const { return dxDevice.dev; };
-    Microsoft::WRL::ComPtr<ID3D11DeviceContext> getDeviceContext() const { return dxDevice.devcon; };
     Microsoft::WRL::ComPtr<IDXGISwapChain> getSwapChain() const { return swapchain; };
     RenderTarget renderstreamTarget;
 

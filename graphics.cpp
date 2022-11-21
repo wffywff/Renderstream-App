@@ -7,7 +7,6 @@
 #include <WICTextureLoader.h>
 #include <shobjidl.h> 
 
-
 #include "Generated_Code/VertexShader.h"
 #include "Generated_Code/PixelShader.h"
 #include "Generated_Code/TexVertexShader.h"
@@ -15,10 +14,11 @@
 
 auto failureReport = [](const char* msg)
 {
-    ErrorLogger::log(msg);
+    ErrorLogger::popMessageBox(msg);
     return -1;
 };
 
+// TODO: currently texture on plane does NOT work
 int PlaneScene::loadScene()
 {
     //Step7/8:create shaders base off the shader.h's binary blob 
@@ -83,8 +83,13 @@ int PlaneScene::loadScene()
     if (FAILED(dxDeviceScene.dev->CreateSamplerState(&sampDesc, samplerState.GetAddressOf())))
         return failureReport("Failed to create sampler state.");
 
-    if (FAILED(DirectX::CreateWICTextureFromFile(dxDeviceScene.dev.Get(), texturePath, nullptr, preloadTexture.GetAddressOf())))
-        return failureReport("Failed to create texture from file.");
+    // TODO: currently scene is created every frame
+    // therefore can not prompt selection every frame.
+    // Need to figure out where to call selectTexture();
+
+    //selectTexture();
+    //if (FAILED(DirectX::CreateWICTextureFromFile(dxDeviceScene.dev.Get(), texturePath, nullptr, preloadTexture.GetAddressOf())))
+    //    return failureReport("Failed to create texture from file.");
 
     UINT stride = sizeof(texVERTEX);
     UINT offset = 0;
@@ -137,8 +142,10 @@ void PlaneScene::selectTexture()
 
 int CubeScene::loadScene()
 {
-    if (FAILED(dxDeviceScene.dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))  return -1;
-    if (FAILED(dxDeviceScene.dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))  return -1;
+    if (FAILED(dxDeviceScene.dev->CreateVertexShader(VertexShaderBlob, std::size(VertexShaderBlob), NULL, pVS.GetAddressOf())))
+        return failureReport("Failed to create vertex shader.");
+    if (FAILED(dxDeviceScene.dev->CreatePixelShader(PixelShaderBlob, std::size(PixelShaderBlob), NULL, pPS.GetAddressOf())))
+        return failureReport("Failed to create pixel shader.");
 
     D3D11_INPUT_ELEMENT_DESC ied[] =
     {
@@ -146,7 +153,8 @@ int CubeScene::loadScene()
         {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
     };
 
-    if (FAILED(dxDeviceScene.dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateInputLayout(ied, 2, VertexShaderBlob, std::size(VertexShaderBlob), &pLayout)))
+        return failureReport("Failed to create input lay out.");
 
     D3D11_BUFFER_DESC bd;
     ZeroMemory(&bd, sizeof(bd));
@@ -156,7 +164,8 @@ int CubeScene::loadScene()
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    if (FAILED(dxDeviceScene.dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf()))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateBuffer(&bd, NULL, pVBuffer.GetAddressOf())))
+        return failureReport("Failed to create vertex buffer.");
 
     // copy the vertices into the buffer
     D3D11_MAPPED_SUBRESOURCE ms;
@@ -173,7 +182,8 @@ int CubeScene::loadScene()
     //Resources created with this flag cannot be set as outputs of the pipeline.
     bd.MiscFlags = 0;
 
-    if (FAILED(dxDeviceScene.dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf()))) return -1;
+    if (FAILED(dxDeviceScene.dev->CreateBuffer(&bd, NULL, pIBuffer.GetAddressOf())))
+        return failureReport("Failed to create index shader.");
 
     dxDeviceScene.devcon->Map(pIBuffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);    // map the buffer
     memcpy(ms.pData, cubeIndices, sizeof(cubeIndices));                   // copy the data
@@ -197,7 +207,7 @@ Graphics::Graphics(const dx11device& dxObject, const GraphicsInfo& info)
     initDx(info);
 }
 
-int Graphics::initDx(const GraphicsInfo& info)
+void Graphics::initDx(const GraphicsInfo& info)
 {
     // make description for a 2dTexture
     D3D11_TEXTURE2D_DESC rtDesc;
@@ -220,14 +230,20 @@ int Graphics::initDx(const GraphicsInfo& info)
     rtDesc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
 
     if (FAILED(dxDevice.dev->CreateTexture2D(&rtDesc, nullptr, renderstreamTarget.texture.GetAddressOf())))
-        return 80;
+    {
+        ErrorLogger::popMessageBox("Failed to create renderstream target texture.");
+        return;
+    }
 
     D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
     ZeroMemory(&rtvDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
     rtvDesc.Format = rtDesc.Format;
     rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
     if (FAILED(dxDevice.dev->CreateRenderTargetView(renderstreamTarget.texture.Get(), &rtvDesc, renderstreamTarget.view.GetAddressOf())))
-        return 81;
+    {
+        ErrorLogger::popMessageBox("Failed to create renderstream target texture view.");
+        return;
+    }
 
     //Step2: create swapchain
     DXGI_SWAP_CHAIN_DESC scd;
@@ -259,14 +275,26 @@ int Graphics::initDx(const GraphicsInfo& info)
     dxgiDevice = nullptr;
     dxgiAdapter = nullptr;
     dxgiFactory = nullptr;
-    if (FAILED(hr)) return 82;
+    if (FAILED(hr))
+    {
+        ErrorLogger::popMessageBox("Failed to create swapchain.");
+        return;
+    }
 
     //Step3:create the back buffer for drawing the pixel to 
     ID3D11Texture2D* pBackBuffer;
-    if (FAILED(swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer))) return 83;
+    if (FAILED(swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer)))
+    {
+        ErrorLogger::popMessageBox("Failed to create back buffer.");
+        return;
+    }
 
     //Step4:creat renderTargetView, which is a way to access resource, bounded to the buffer resource
-    if (FAILED(dxDevice.dev->CreateRenderTargetView(pBackBuffer, NULL, backbuffer.GetAddressOf()))) return 84;
+    if (FAILED(dxDevice.dev->CreateRenderTargetView(pBackBuffer, NULL, backbuffer.GetAddressOf())))
+    {
+        ErrorLogger::popMessageBox("Failed to create back buffer rendertarget view.");
+        return;
+    }
     //note: once renderTargetView is created, the true backBuffer is no longer in use, release it. 
     pBackBuffer->Release();
 
@@ -283,14 +311,22 @@ int Graphics::initDx(const GraphicsInfo& info)
     texd.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
     ID3D11Texture2D* pDepthBuffer;
-    if (FAILED(dxDevice.dev->CreateTexture2D(&texd, NULL, &pDepthBuffer))) return 85;
+    if (FAILED(dxDevice.dev->CreateTexture2D(&texd, NULL, &pDepthBuffer)))
+    {
+        ErrorLogger::popMessageBox("Failed to create depth buffer.");
+        return;
+    }
 
     //Step6:create the depth stencil 
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvd;
     ZeroMemory(&dsvd, sizeof(dsvd));
     dsvd.Format = DXGI_FORMAT_D32_FLOAT;
     dsvd.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
-    if (FAILED(dxDevice.dev->CreateDepthStencilView(pDepthBuffer, &dsvd, depthStencilView.GetAddressOf()))) return 86;
+    if (FAILED(dxDevice.dev->CreateDepthStencilView(pDepthBuffer, &dsvd, depthStencilView.GetAddressOf())))
+    {
+        ErrorLogger::popMessageBox("Failed to create depth stencil view.");
+        return;
+    }
     pDepthBuffer->Release();
 
     D3D11_VIEWPORT viewport;
@@ -307,24 +343,6 @@ int Graphics::initDx(const GraphicsInfo& info)
     ImGui_ImplWin32_Init(info.m_window);
     ImGui_ImplDX11_Init(dxDevice.dev.Get(), dxDevice.devcon.Get());
     ImGui::StyleColorsDark();
-
-    return 0;
-}
-
-DXGI_FORMAT Graphics::toDxgiFormat(RSPixelFormat rsFormat)
-{
-    switch (rsFormat)
-    {
-    case RS_FMT_BGRA8:
-    case RS_FMT_BGRX8:
-        return DXGI_FORMAT_R8G8B8A8_UNORM;
-    case RS_FMT_RGBA32F:
-        return DXGI_FORMAT_R32G32B32A32_FLOAT;
-    case RS_FMT_RGBA16:
-        return DXGI_FORMAT_R16G16B16A16_UNORM;
-    default:
-        throw std::runtime_error("bad pixel format");
-    }
 }
 
 void Graphics::render(const DirectX::XMMATRIX &matFinal, const int sceneNum)
@@ -354,4 +372,20 @@ void Graphics::render(const DirectX::XMMATRIX &matFinal, const int sceneNum)
     dxDevice.devcon->VSSetConstantBuffers(0, 1, pCBuffer.GetAddressOf());
 
     dxDevice.devcon->DrawIndexed(indexCount, 0, 0);
+}
+
+DXGI_FORMAT Graphics::toDxgiFormat(RSPixelFormat rsFormat)
+{
+    switch (rsFormat)
+    {
+    case RS_FMT_BGRA8:
+    case RS_FMT_BGRX8:
+        return DXGI_FORMAT_R8G8B8A8_UNORM;
+    case RS_FMT_RGBA32F:
+        return DXGI_FORMAT_R32G32B32A32_FLOAT;
+    case RS_FMT_RGBA16:
+        return DXGI_FORMAT_R16G16B16A16_UNORM;
+    default:
+        throw std::runtime_error("bad pixel format");
+    }
 }
