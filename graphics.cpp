@@ -88,8 +88,6 @@ int PlaneScene::loadScene()
     // Need to figure out where to call selectTexture();
 
     //selectTexture();
-    //if (FAILED(DirectX::CreateWICTextureFromFile(dxDeviceScene.dev.Get(), texturePath, nullptr, preloadTexture.GetAddressOf())))
-    //    return failureReport("Failed to create texture from file.");
 
     UINT stride = sizeof(texVERTEX);
     UINT offset = 0;
@@ -126,6 +124,8 @@ void PlaneScene::selectTexture()
                     if (SUCCEEDED(hr))
                     {
                         texturePath = pszFilePath;
+                        // moved here since WIC texture needs CoInitializeEx
+                        DirectX::CreateWICTextureFromFile(dxDeviceScene.dev.Get(), texturePath, nullptr, preloadTexture.GetAddressOf());
                     }
                     pItem->Release();
                 }
@@ -189,7 +189,7 @@ int CubeScene::loadScene()
     memcpy(ms.pData, cubeIndices, sizeof(cubeIndices));                   // copy the data
     dxDeviceScene.devcon->Unmap(pIBuffer.Get(), NULL);
 
-    UINT stride = sizeof(DirectX::XMFLOAT3);
+    UINT stride = sizeof(VERTEX);
     UINT offset = 0;
     dxDeviceScene.devcon->IASetVertexBuffers(0, 1, pVBuffer.GetAddressOf(), &stride, &offset);
     dxDeviceScene.devcon->IASetIndexBuffer(pIBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);

@@ -1,6 +1,5 @@
 #pragma once
 #include "include/utility.hpp"
-#include "include/dx11.hpp"
 
 
 bool RenderStream::loadAPI()
@@ -45,6 +44,7 @@ bool RenderStream::loadAPI()
         throw std::runtime_error("Failed to get function " #FUNC_NAME " from DLL"); \
     }
 
+
     LOAD_FN(initialise);
     LOAD_FN(getStreams);
     LOAD_FN(awaitFrameData);
@@ -82,7 +82,14 @@ StreamDescriptions* RenderStream::getStreamsDescriptions()
     m_getStreams(nullptr, &desSize);
     descriptionData.resize(desSize);
     // this time should be able to read bytes into the buffer of streamData, then reinterpret the memory as the struct StreamDescription
-    m_getStreams(reinterpret_cast<StreamDescriptions*>(descriptionData.data()), &desSize);
+    try
+    {
+        m_getStreams(reinterpret_cast<StreamDescriptions*>(descriptionData.data()), &desSize);
+    }
+    catch
+    {
+        throw;
+    }
     return reinterpret_cast<StreamDescriptions*>(descriptionData.data());
 }
 

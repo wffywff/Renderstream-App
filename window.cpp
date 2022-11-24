@@ -65,16 +65,17 @@ bool Window::processMessage()
     {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
-    }
-
-    if (msg.message == WM_NULL)
-    {
-        if (!IsWindow(m_handle))
+        if (msg.message == WM_NULL)
         {
-            m_handle = NULL; 
-            UnregisterClass(m_window_class_wide, NULL);
-            return false;
+            if (!IsWindow(m_handle))
+            {
+                m_handle = NULL;
+                UnregisterClass(m_window_class_wide, NULL);
+                return false;
+            }
         }
     }
+
+
     return true;
 }
